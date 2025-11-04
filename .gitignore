@@ -1,0 +1,24 @@
+# MATLAB backup and autosave files
+*.asv
+*.m~
+*.mdl.*
+*.slx.*
+
+# Simulink cache and code generation
+slprj/
+sfun.mex*
+*.mex*
+
+# MATLAB compiled app files
+*.mlappinstall
+*.mlpkginstall
+*.mltbx
+*.mlapp
+
+# Project-specific files
+*.prj
+*.autosave
+
+# System files
+.DS_Store
+Thumbs.db
