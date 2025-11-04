@@ -90,47 +90,12 @@ classdef signal < handle
 %             obj.plotTbl = obj.sigTbl(ismember(obj.sigTbl.ChName, obj.chToPlot), :);
             obj.plotTbl = obj.sigTbl(obj.chToPlot, :);
 
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % if obj.bipolarTF
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %     numCh = size(obj.plotTbl, 1);
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %     if mod(numCh, 2) ~= 0
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %         warning('Bipolar montage requires even number of channels. Skipping last channel.');
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %         numCh = numCh - 1;
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %     end
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %     newTbl = obj.plotTbl(1:2:numCh-1, :);  % Preallocate new table
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %     for k = 1:2:numCh
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %         ch1Name = obj.plotTbl.ChName(k);
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %         ch2Name = obj.plotTbl.ChName(k+1);
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %         sig1 = obj.plotTbl.Data{k};
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %         sig2 = obj.plotTbl.Data{k+1};
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %         if length(sig1) ~= length(sig2)
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %             warning('Skipping pair %s-%s due to length mismatch.', ch1Name, ch2Name);
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %             continue;
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %         end
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %         newSignal = sig1 - sig2;
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %         idx = (k+1)/2;
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %         newTbl.Data{idx} = newSignal;
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %         newTbl.ChName(idx) = ch1Name + "-" + ch2Name;
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %     end
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %     obj.plotTbl = newTbl;
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %     obj.chToPlot = 1:size(obj.plotTbl, 1);
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %     disp('Bipolar montage applied to channel pairs:');
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %     disp(strjoin(newTbl.ChName, ', '));
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % else
-            % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %     obj.plotTbl = obj.sigTbl;
             if ~obj.bipolarTF
                 obj.plotTbl = obj.sigTbl(obj.chToPlot, :);
             else
                 obj = applyBipolar(obj);
                 % % % obj.plotTbl = obj.bipolarTbl(obj.chToPlot, :);
             end
-chToPlot_ = obj.chToPlot
-sigTbl_ = obj.sigTbl
 
 
 

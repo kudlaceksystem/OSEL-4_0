@@ -1121,6 +1121,7 @@ classdef controlWindow < handle
 kf_ = kf
                     fileNumber = obj.findCorrespondingFile(obj.signalObj.filepn{kf}, lbln);
                     if isempty(fileNumber)
+                        disp('no corresponding file')
                         continue
                     end
                     [newSigInfo, newLblDef, newLblSet] = loadLabel(lblpn{fileNumber});
