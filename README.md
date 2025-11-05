@@ -92,7 +92,7 @@ Takes care of reading the video files.
 #### videoShow.m
 Takes care of actually showing the videos in a separate window (again, one can move it freely).
 
-3### stgs.m
+#### stgs.m
 Stores settings (mostly window sizes).
 
 #### keyShortTbl.m
@@ -119,10 +119,10 @@ Some sample data (4-channel EEG and labels) of a mouse with epilepsy due to foca
 
 
 # The OSEL team
-OSEL is being developed by
-Nedime Karakallukcu
-Anna Svobodová
-Jan Kudláček
+OSEL is being developed by </br>
+Nedime Karakallukcu </br>
+Anna Svobodová </br>
+Jan Kudláček </br>
 
 We are happy to help you adopt it and use it.
 Email:
