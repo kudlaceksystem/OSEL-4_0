@@ -8,6 +8,7 @@ OSEL (Czech word for donkey) is Matlab-based signal viewer developed at Second F
 	- Zoom
 	- Navigate between many hundreds of sequential data files
 	- Select channels
+	- Filter the signal
 	- Perform basic mathematical operations such as computing average reference
 - Label various patterns and transients 
 	- You define label classes (e.g. "Sleep", "Noise", "Seizure")
