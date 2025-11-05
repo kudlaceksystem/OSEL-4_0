@@ -174,27 +174,9 @@ classdef controlWindow < handle
                     end
                     obj.signalObj.sigUpdate;
 
-                case 'makeBipolar'
-                    obj.signalObj.bipolarTF = ~obj.signalObj.bipolarTF;
-                    obj.signalObj.plotSignal;
-                    if obj.signalObj.bipolarTF
-                        obj.h.mMakeBipolar.Checked = 'on';
-                    else
-                        obj.h.mMakeBipolar.Checked = 'off';
-                    end
-                    obj.signalObj.sigUpdate;
                 
                 case 'toggleBipolar'
-                    obj = obj.toggleBipolar(obj);
-                    % % % obj.signalObj.bipolarTF = ~obj.signalObj.bipolarTF;
-                    % % % if obj.signalObj.bipolarTF
-                    % % %     obj.h.mMakeBipolar.Checked = 'on';
-                    % % %     % % % % obj.signalObj = obj.signalObj.applyBipolar();  % change plotTbl 
-                    % % % else
-                    % % %     obj.h.mMakeBipolar.Checked = 'off';
-                    % % % end
-                    % % % obj.signalObj.plotSignal();  % Just plots whatever is in plotTbl
-                    % % % % % % obj.signalObj.sigUpdate;
+                    obj.toggleBipolar;
                 
                 case 'MoveSignalTo'
                     [loadpath, ~, ~, ~] = controlWindow.getLoadpath([]);
@@ -790,18 +772,15 @@ classdef controlWindow < handle
                     obj.h.bNav(6).Value = 0;
             end
         end
-        
         function obj = toggleBipolar(obj)
             obj.signalObj.bipolarTF = ~obj.signalObj.bipolarTF;
             if obj.signalObj.bipolarTF
-                obj.h.mMakeBipolar.Checked = 'on';
-                % % % % obj.signalObj = obj.signalObj.applyBipolar();  % change plotTbl 
+                obj.h.mToggleBipolar.Checked = 'on';
             else
                 obj.signalObj.chToPlot = 1 : height(obj.signalObj.sigTbl);
-                obj.h.mMakeBipolar.Checked = 'off';
+                obj.h.mToggleBipolar.Checked = 'off';
             end
             obj.signalObj.plotSignal;  % Just plots whatever is in plotTbl
-            % % % obj.signalObj.sigUpdate;
         end
         function obj = moveSigToFolder(obj)
             % moveSigToFolder
@@ -1389,7 +1368,7 @@ kf_ = kf
                 'Tag', 'filterEditUser');
             obj.h.mAverageRef = uimenu(obj.h.mSignal, 'Label', '&Average Reference...', 'Callback', @obj.cbMenu,...
             'Tag', 'AverageRef');
-            obj.h.mToggleBipolar = uimenu(obj.h.mSignal, 'Label', 'Bipolar montage', 'Callback', @obj.cbMenu,...
+            obj.h.mToggleBipolar = uimenu(obj.h.mSignal, 'Label', 'Bipolar pairs', 'Callback', @obj.cbMenu,...
                 'Tag', 'toggleBipolar');
             obj.h.mMoveSignalTo= uimenu(obj.h.mSignal, 'Label', '&Move SignalTo...', 'Callback', @obj.cbMenu,...
             'Tag', 'MoveSignalTo');

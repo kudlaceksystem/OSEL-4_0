@@ -40,5 +40,5 @@ OSEL (Czech word for donkey) is Matlab-based signal viewer developed at Second F
 
 
 ## Requirements
-- Matlab
+- Matlab (tested on Matlab 2024b)
 - Signal Processing Toolbox
