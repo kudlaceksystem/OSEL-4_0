@@ -122,11 +122,16 @@ Some sample data (4-channel EEG and labels) of a mouse with epilepsy due to foca
 OSEL is being developed by </br>
 Nedime Karakallukcu </br>
 Anna Svobodová </br>
+Carl Olson </br>
 Jan Kudláček </br>
 
 We are happy to help you adopt it and use it.
 Email:
 kudlaceksystem@gmail.com
+
+
+# Funding
+Development of this software was supported by grants of the Czech Science Foundation (21-17564S), the Ministry of Education, Youth and Sports of the Czech Republic (EU – Next Generation EU: LX22NPO5107; author J.K  were supported by ERDF-Project Brain dynamics, No. CZ.02.01.01/00/22_008/0004643), and Charles University (PRIMUS 23/MED/011, EXCITE UNCE 24/MED/021).
 
 
 
