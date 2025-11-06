@@ -32,7 +32,7 @@ If OSEL cannot find the exact same name, it will try to match the date and time.
 - Label various patterns and transients 
 	- You define label classes (e.g. "Sleep", "Noise", "Seizure")
 	- Each label has a value which may have any meaning you assign to it (e.g. sleep stage, severity of the seizure or how much confident you are it really is a seizure)
-	- You specify colors for the labels, the value is coded by brightness
+	- You specify colors for the labels, the value is coded by saturation
 	- You can easily move label's start and end even after it is created or delete it
 	- OSEL is designed for easy visualization and editting of labels created by an automated detector, especially deleting false positive detections
 	- The labels are stored in a separate mat-file named according to the signal file so that they can be automatically paired

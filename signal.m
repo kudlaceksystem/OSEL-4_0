@@ -166,7 +166,6 @@ classdef signal < handle
                 end
             end
             
-            
             if obj.fltUserTF
                 if obj.fltUserSpecs.ApplyAll
                     obj.whichChToFilter(:)= true;
@@ -207,9 +206,7 @@ classdef signal < handle
                 obj.plotTbl.Data =  cellfun(@(x) x - averageSignal, obj.plotTbl.Data, 'UniformOutput', false);
                 disp(['Applied saved average reference channels: ', strjoin(obj.avgRefChannelNames, ', ')]);
             end
-
             
-
             % Plot signal and Now line
             obj.h.axSig = gobjects(numch, 1);
             for k = 1 : numch
@@ -671,7 +668,6 @@ classdef signal < handle
             obj.h.butt(7) = uibutton(obj.h.channels, 'push', 'Position', [20 + obj.stg.sChannelsFigPos(3) - 120, 20, 80, 30],...
                 'Text', 'Load Order', 'ButtonPushedFcn', @obj.cbUicontrol, 'Tag', 'channelsLoadOrder');  % The callback function knows which button was pressed from the Tag
         end
-        
         function obj = channelsApply(obj)
             obj.chToPlot = obj.h.uitChannels.Data.Order; % Type channels number based on user's desire
             obj.chToPlot = obj.chToPlot (find(obj.h.uitChannels.Data.Show)); % Select channels
@@ -783,7 +779,7 @@ classdef signal < handle
             eval(['obj.', src.Tag, ';']);
         end
 
-        %%
+        %% Navigation
         function cbNow(obj, ~, ~)
             obj.controlObj.nowClicked = true;
         end
