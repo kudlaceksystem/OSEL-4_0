@@ -898,7 +898,7 @@ classdef controlWindow < handle
         function obj = neuroSignalStudio_checkbox(obj)
             clc;
             disp('NeuroSignal Studio is running....');
-            calculations_exported_V250205(obj);
+            neuroSignalStudio(obj);
         end
 
         %% Zoom
