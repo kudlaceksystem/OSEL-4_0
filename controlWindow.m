@@ -716,36 +716,26 @@ classdef controlWindow < handle
             drawnow
             % Save current label
             if ~isempty(obj.labelObj) % First save current label
-                % % % % % % % 'c2 -> s'
                 obj.labelObj = obj.labelObj.lblSave;
-                % % % % % 's -> c3'
             end
-            % % % % % % % % % 'c4'
             if obj.currentFile < length(obj.signalObj.filepn)
                 stop(obj.tmr)
                 obj.plotLimS = [0, obj.plotLenS]; % Keep same zoom
                 obj.nowS = obj.plotLimS(1);
                 obj.currentFile = obj.currentFile + 1;
-                % % % % % % 'c5'
                 obj.fileUpdate;
-                % % % % % % 'c6'
             else
                 disp(['_jk currentFile = ', num2str(obj.currentFile), '/', num2str(length(obj.signalObj.filepn))])
             end
             obj.h.f.Interruptible = 'on';
             obj.signalObj.h.f.Interruptible = 'on';
             drawnow
-            % % % % % 'c7'
             obj.callbackRunning = false;
         end
         function obj = nextFile(obj)
             if obj.callbackRunning
                 return
             end
-            % Save current label
-            % % % %             if ~isempty(obj.labelObj) && obj.automaticLabelSaving % First save current label
-            % % % %                 obj.labelObj = obj.labelObj.lblSave;
-            % % % %             end
             if obj.currentFile < length(obj.signalObj.filepn)
                 stop(obj.tmr)
                 obj.plotLimS = [0, obj.plotLenS]; % Keep same zoom

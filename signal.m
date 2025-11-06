@@ -525,6 +525,7 @@ classdef signal < handle
                 case 'in'
                     col = obj.stg.sZoomInColor;
                 case 'out'
+'signal -> mouseZoomInDn, case ''out'''
                     col = obj.stg.sZoomOutColor;
             end
             for k = 1 : numch
