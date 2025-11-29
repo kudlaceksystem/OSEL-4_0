@@ -177,6 +177,9 @@ classdef controlWindow < handle
                 
                 case 'toggleBipolar'
                     obj.toggleBipolar;
+
+                case 'connectivity'
+                    obj.connectivity;
                 
                 case 'MoveSignalTo'
                     [loadpath, ~, ~, ~] = controlWindow.getLoadpath([]);
@@ -782,6 +785,10 @@ classdef controlWindow < handle
             end
             obj.signalObj.plotSignal;  % Just plots whatever is in plotTbl
         end
+        function obj = connectivity(obj)
+            figure;
+            disp('Connectivity computation')
+        end
         function obj = moveSigToFolder(obj)
             % moveSigToFolder
             if isempty(obj.destinationFolder)
@@ -1370,6 +1377,8 @@ kf_ = kf
             'Tag', 'AverageRef');
             obj.h.mToggleBipolar = uimenu(obj.h.mSignal, 'Label', 'Bipolar pairs', 'Callback', @obj.cbMenu,...
                 'Tag', 'toggleBipolar');
+            obj.h.mConnectivity = uimenu(obj.h.mSignal, 'Label', 'Connectivity', 'Callback', @obj.cbMenu,...
+                'Tag', 'connectivity');
             obj.h.mMoveSignalTo= uimenu(obj.h.mSignal, 'Label', '&Move SignalTo...', 'Callback', @obj.cbMenu,...
             'Tag', 'MoveSignalTo');
            
