@@ -286,7 +286,7 @@ function sigTbl = loadSmrx(filepn)
     % Modified by Jan Kudlacek 2022
     [filep, filen, ~] = fileparts(filepn);
     if isempty(getenv('CEDS64ML'))
-        setenv('CEDS64ML', [cd, '\CEDMATLAB\CEDS64ML']);
+        setenv('CEDS64ML', [cd, '/CEDMATLAB/CEDS64ML']);
     end
     cedpath = getenv('CEDS64ML');
     addpath(cedpath);

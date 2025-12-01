@@ -6,6 +6,7 @@ classdef controlWindow < handle
         videoShowObj
         labelObj
         tmr % Timer object, used to run video and cursor along the signal
+        connObj
 
         plotLimS % Current plot limits on x-axis
         nowS % Video and cursor position in time
@@ -80,7 +81,7 @@ classdef controlWindow < handle
                 case 'signalLoad' % Possibly move the code to a function
                     % First ask user for the file path and names. If the user changes their mind during the uigetfile and selects nothing,
                     % getFilepn returns empty and nothing happens so we don't clear the current signal.
-                    filepn = controlWindow.getFilepn('Select signal files', 'on', '\*.*', 'signal');
+                    filepn = controlWindow.getFilepn('Select signal files', 'on', '/*.*', 'signal');
                     if isempty(filepn)
                         return
                     end
@@ -179,7 +180,19 @@ classdef controlWindow < handle
                     obj.toggleBipolar;
 
                 case 'connectivity'
-                    obj.connectivity;
+
+                    if isempty(obj.signalObj)
+                        warndlg('Load a signal first.','Connectivity');
+                        return
+                    end
+                
+                    % Create connectivity object / window if it does not exist
+                    if isempty(obj.connObj) || ~isvalid(obj.connObj)
+                        obj.connObj = connWindow(obj);   % pass controlWindow handle
+                    else
+                        figure(obj.connObj.hFig);          % bring existing window to front
+                    end
+
                 
                 case 'MoveSignalTo'
                     [loadpath, ~, ~, ~] = controlWindow.getLoadpath([]);
@@ -785,10 +798,10 @@ classdef controlWindow < handle
             end
             obj.signalObj.plotSignal;  % Just plots whatever is in plotTbl
         end
-        function obj = connectivity(obj)
-            figure;
-            disp('Connectivity computation')
-        end
+        % function obj = connectivity(obj)
+        %     figure;
+        %     disp('Connectivity computation')
+        % end
         function obj = moveSigToFolder(obj)
             % moveSigToFolder
             if isempty(obj.destinationFolder)
@@ -1709,6 +1722,7 @@ kf_ = kf
         end
         function saveLoadpath(l, filep, compName, typ)
             l.loadpath = filep;
+            compName = 'F02901'; % Kristof to sem pridal tak si to pak spravte vy bambulove
             l.loadpathSpecial.(compName).(typ) = filep;
             save('loadpath.mat', '-struct', 'l')
             lll = load('loadpath.mat');
