@@ -193,6 +193,16 @@ classdef controlWindow < handle
                         figure(obj.connObj.hFig);          % bring existing window to front
                     end
 
+                    if isempty(obj.nowS)
+                        if isempty(obj.plotLimS)
+                            obj.plotLimS = obj.stg.cDefaultPlotLimS;
+                        end
+                        obj.nowS = mean(obj.plotLimS);   % or obj.plotLimS(1)
+                    end
+                    obj.signalObj.sigUpdate;
+                    obj.nowUpdate;
+                    'jsem po nowUpdate'
+
                 
                 case 'MoveSignalTo'
                     [loadpath, ~, ~, ~] = controlWindow.getLoadpath([]);

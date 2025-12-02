@@ -68,6 +68,6 @@ function s = stgs
     format compact
 
     %% connectivity window
-    s.connFigPos = int64([0, scrSz(4) - 400 - 30, scrSz(3) - s.cFigPos(3), 400]);
+    s.connFigPos = int64([0, 50, scrSz(3) - s.cFigPos(3), scrSz(4)-80]);
 
 end

@@ -268,9 +268,17 @@ classdef signal < handle
                 obj.controlObj.labelObj.setSignalAxesCallback;
             end
             % Hide cursor if there is no video
+            hideCursorIfNoVideo_ = ~ishandle(obj.h.lNow)
             obj.h.lNow(~ishandle(obj.h.lNow)) = [];
-            if isempty(obj.controlObj.videoObj)
+            
+            videoOn        = ~isempty(obj.controlObj.videoObj);
+            connectivityOn = ~isempty(obj.controlObj.connObj) && isvalid(obj.controlObj.connObj);
+            
+            % Hide cursor only if neither video nor connectivity is active
+            if ~videoOn && ~connectivityOn
                 [obj.h.lNow.Visible] = deal('off');
+            else
+                [obj.h.lNow.Visible] = deal('on');
             end
             
             % Plot time ticks
@@ -365,19 +373,25 @@ classdef signal < handle
             for k = 1 : numch
                 obj.h.lNow(k).XData = [obj.controlObj.nowS, obj.controlObj.nowS];
             end
-            if isa(obj.h.f.CurrentObject, 'matlab.graphics.GraphicsPlaceholder')
-                return
-            end
+            '1'
+            '2'
             if strcmp(obj.controlObj.tmr.Running, 'on')
                 return
             end
-            if ~contains(obj.h.f.CurrentObject.Tag, 'lbl')
-                if isempty(obj.controlObj.videoObj)
-                    [obj.h.lNow.Visible] = deal('off');
-                else
-                    [obj.h.lNow.Visible] = deal('on');
+            if ~isa(obj.h.f.CurrentObject, 'matlab.graphics.GraphicsPlaceholder')
+                if contains(obj.h.f.CurrentObject.Tag, 'lbl')
+                    return
                 end
             end
+           
+isemptyVideoObj_ = isempty(obj.controlObj.videoObj)
+isemptyConnObj_ = isempty(obj.controlObj.connObj)
+            if isempty(obj.controlObj.videoObj) && isempty(obj.controlObj.connObj)
+                [obj.h.lNow.Visible] = deal('off');
+            else
+                [obj.h.lNow.Visible] = deal('on');
+            end
+            'jsem tu'
         end
         
         function obj = customAverageRefDialog(obj)   % Function for calculating average reference

@@ -29,10 +29,10 @@ classdef connWindow < handle
             obj.key = keyShortTbl;
         
             % Figure position: use stg, but full screen height
-            gr    = groot;
-            scrSz = gr.ScreenSize;
+            % gr    = groot;
+            % scrSz = gr.ScreenSize;
             pos   = obj.stg.connFigPos;
-            pos(4) = scrSz(4);    % make it as tall as the screen
+            % pos(4) = scrSz(4);    % make it as tall as the screen
         
             obj.hFig = figure('Name','Connectivity', ...
                 'NumberTitle','off', ...
@@ -64,22 +64,26 @@ classdef connWindow < handle
                 'Callback',@(src,evt)obj.cbPopupWin(src), ...
                 'BackgroundColor', bg);
         
-            % Step size popup (0.1:0.1:0.9)
+           % Step size popup (absolute seconds)
             uicontrol('Parent',obj.hFig, 'Style','text', ...
                 'Units','normalized', ...
                 'Position',[0.38 1-ctrlH+0.01 0.18 0.05], ...
-                'String','Step [s]:', ...
+                'String','Step size [s]:', ...
                 'HorizontalAlignment','left', ...
                 'BackgroundColor', bg);
-        
-            stepOptions = 0.1:0.1:0.9;
+            
+            % Define possible step sizes (from 0.5 up to 10; will later be clamped to winSizeS)
+            stepOptions = 0.5:0.5:10;
             stepStr     = arrayfun(@(x)sprintf('%.1f',x), stepOptions, 'UniformOutput',false);
-        
+            
+            % Initial index corresponding to default stepSizeS
+            [~,idx0] = min(abs(stepOptions - obj.stepSizeS));
+            
             obj.hPopupStep = uicontrol('Parent',obj.hFig, 'Style','popupmenu', ...
                 'Units','normalized', ...
                 'Position',[0.50 1-ctrlH+0.01 0.18 0.05], ...
                 'String',stepStr, ...
-                'Value', find(abs(stepOptions-obj.stepSizeS)<1e-6,1), ...
+                'Value', idx0, ...
                 'Callback',@(src,evt)obj.cbPopupStep(src), ...
                 'BackgroundColor', bg);
         
@@ -148,26 +152,41 @@ classdef connWindow < handle
 
         end
 
-       function cbPopupWin(obj, src)
+        function cbPopupWin(obj, src)
             winOptions = 1:0.5:10;
             idx = src.Value;
             obj.winSizeS = winOptions(idx);
-            fprintf('Window size set to %.1f s\n', obj.winSizeS);
-        end
         
-        function cbPopupStep(obj, src)
-            stepOptions = 0.1:0.1:0.9;
-            idx = src.Value;
-            obj.stepSizeS = stepOptions(idx);
-            fprintf('Step size set to %.1f s\n', obj.stepSizeS);
+            % Ensure step is at least 0.5 and at most winSizeS
+            obj.stepSizeS = min(max(obj.stepSizeS, 0.5), obj.winSizeS);
+        
+            fprintf('Window size set to %.1f s, current step = %.3f s\n', ...
+                    obj.winSizeS, obj.stepSizeS);
         end
+
+        
+       function cbPopupStep(obj, src)
+            stepOptions = 0.5:0.5:10;      % absolute step sizes
+            idx = src.Value;
+            step = stepOptions(idx);
+        
+            % Clamp to [0.5, winSizeS]
+            step = min(max(step,0.5), obj.winSizeS);
+            obj.stepSizeS = step;
+        
+            fprintf('Step size set to %.3f s (window %.1f s)\n', ...
+                    obj.stepSizeS, obj.winSizeS);
+        end
+
 
 
 
         % Apply button callback
         function cbApply(obj)
-            obj.currentStartS = 0;  % start at beginning for now
-            fprintf('Apply: win = %.3f s, step = %.3f s, start = %.3f s\n', ...
+            % Use current now line position as start of window
+            obj.currentStartS = obj.controlObj.nowS;
+        
+            fprintf('Apply: win = %.3f s, step = %.3f s, start = %.3f s (nowS)\n', ...
                     obj.winSizeS, obj.stepSizeS, obj.currentStartS);
         
             obj.computeAndPlot(obj.currentStartS);
@@ -252,6 +271,7 @@ classdef connWindow < handle
                 axes(ax); %#ok<LAXES>
                 imagesc(ax, C);
                 axis(ax,'image');
+                colormap("turbo")
                 colorbar(ax);
         
                 % No per-axes title
@@ -268,13 +288,24 @@ classdef connWindow < handle
 
         end
 
-
         function cbNext(obj)
-            % Move window by step and recompute
+            % Move window by step
             obj.currentStartS = obj.currentStartS + obj.stepSizeS;
-            fprintf('Next: win = %.3f s, step = %.3f s, new start = %.3f s\n', ...
+            'Next'
+        
+            % Update global now line position to the new window start
+            obj.controlObj.nowS = obj.currentStartS;
+            disp(obj.controlObj.nowS)
+        
+            % Redraw now line
+
+            obj.controlObj.signalObj.nowUpdate;
+
+        
+            fprintf('Next: win = %.3f s, step = %.3f s, new start = %.3f s (nowS)\n', ...
                     obj.winSizeS, obj.stepSizeS, obj.currentStartS);
         
+            % Recompute connectivity for new window
             obj.computeAndPlot(obj.currentStartS);
         end
     end
