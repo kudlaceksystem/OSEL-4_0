@@ -46,7 +46,8 @@ commandShortcut = {...
     'labelSave',            's',            'control';
     'editCurrentFileFocus', 'f6',           '';
     'toggleBipolar',        'f2',           '';
-    'connectivity',         'k',            '';             
+    'connNextWindow',       'k',            '';
+    'connPrevWindow',       'k',            'control';
     
     'numberPressed',        '0',            ''; % For labeling. Keep this as numbers unless you want to make major changes to the code.
     'numberPressed',        '1',            '';

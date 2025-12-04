@@ -808,10 +808,31 @@ classdef controlWindow < handle
             end
             obj.signalObj.plotSignal;  % Just plots whatever is in plotTbl
         end
-        % function obj = connectivity(obj)
-        %     figure;
-        %     disp('Connectivity computation')
-        % end
+
+        function obj = connNextWindow(obj)
+            % Make sure the connectivity window exists
+            if isempty(obj.connObj) || ~isvalid(obj.connObj)
+                warning('Connectivity window not open.');
+                return;
+            end
+        
+            % Call the same code as the Next button
+            obj.connObj.cbNext();
+        end
+        
+        function obj = connPrevWindow(obj)
+
+            % Make sure the connectivity window exists
+            if isempty(obj.connObj) || ~isvalid(obj.connObj)
+                warning('Connectivity window not open.');
+                return;
+            end
+        
+            % Call the same code as the Next button
+            obj.connObj.cbPrev();
+        end
+
+      
         function obj = moveSigToFolder(obj)
             % moveSigToFolder
             if isempty(obj.destinationFolder)
