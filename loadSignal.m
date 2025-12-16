@@ -321,7 +321,7 @@ function sigTbl = loadSmrx(filepn)
     % Find what type of recording it is
     recType = 'general';
     for k = 1 : length(chnm)
-        r = regexpi(chnm{k}, '\w\w+-[ABCD]\w+-\w+', 'start');
+        r = regexpi(chnm{k}, '\w\w*-[ABCD]\w*-\w+', 'start');
         if r == 1
             recType = 'prahaMotolChronic';
             break
@@ -333,6 +333,8 @@ function sigTbl = loadSmrx(filepn)
         case 'prahaMotolChronic'
             loadPrahaMotolChronic;
         case 'general'
+disp('Going to loadGeneral')
+pause
             loadGeneral;
     end
     
@@ -342,7 +344,7 @@ function sigTbl = loadSmrx(filepn)
         for kch2 = 1 : length(chnm)
             disp(['Loading channel ', num2str(kch2)])
             str = chnm{kch2};
-            r = regexpi(str, '\w\w+-[ABCD]\w+-\w+', 'match');
+            r = regexpi(str, '\w\w*-[ABCD]\w*-\w+', 'match');
 %             r = regexpi(str, '\d\d\d\d\d\d_\d\d\d\d\d\d', 'match');
             if ~isempty(r)
                 s = strsplit(r{1}, '-');
@@ -352,7 +354,7 @@ function sigTbl = loadSmrx(filepn)
 %                 RecPosition = 'BranoAparatus';
 %                 Subject = 'BranoTheRat';
             else
-                r = regexpi(str, '\w\w+-[ABCD]\w+', 'match');
+                r = regexpi(str, '\w\w*-[ABCD]\w*', 'match');
                 if ~isempty(r)
                     s = strsplit(r{1}, '-');
                     ChName = string(str);
@@ -520,14 +522,14 @@ function sigTbl = loadRhd(filepn)
     [chnm, signalData, fs, digitalIn] = read_Intan_RHD2000_file(filepn);
     for kch2 = 1 : numel(chnm)
         str = char(chnm(kch2));
-        r = regexpi(str, '\w\w+-[ABCD]\+-\w+', 'match');
+        r = regexpi(str, '\w\w*-[ABCD]\w*-\w+', 'match');
         if ~isempty(r)
             s = strsplit(r{1}, '-');
             ChName = string(str);
             RecPosition = string(s{2});
             Subject = string(s{3});
         else
-            r = regexpi(str, '\w\w+-[ABCD]\w+', 'match');
+            r = regexpi(str, '\w\w*-[ABCD]\w*', 'match');
             if ~isempty(r)
                 s = strsplit(r{1}, '-');
                 ChName = string(str);
@@ -593,14 +595,14 @@ function sigTbl = loadRhs(filepn)
     [chnm, signalData, fs, digitalIn] = read_Intan_RHS2000_file(filepn);
     for kch2 = 1 : numel(chnm)
         str = char(chnm(kch2));
-        r = regexpi(str, '\w\w+-[ABCD]\w+-\w+', 'match');
+        r = regexpi(str, '\w\w*-[ABCD]\w*-\w+', 'match');
         if ~isempty(r)
             s = strsplit(r{1}, '-');
             ChName = string(str);
             RecPosition = string(s{2});
             Subject = string(s{3});
         else
-            r = regexpi(str, '\w\w+-[ABCD]\w+', 'match');
+            r = regexpi(str, '\w\w*-[ABCD]\w*', 'match');
             if ~isempty(r)
                 s = strsplit(r{1}, '-');
                 ChName = string(str);
