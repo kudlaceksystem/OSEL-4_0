@@ -437,8 +437,8 @@ classdef label < handle
                 % Find corresponding label file
                 d = dir(obj.filep);
                 filen = {d(~[d.isdir]).name};
-                [~, sigFilen, ~] = fileparts(obj.controlObj.signalObj.filepn{obj.controlObj.currentFile});
-                nFile = obj.controlObj.findCorrespondingFile(sigFilen, filen);
+                [~, sigFilen, ~] = fileparts(obj.controlObj.signalObj.filepn{obj.controlObj.currentFile}); % Get file name of the current signal file
+                nFile = obj.controlObj.findCorrespondingFile(sigFilen, filen); % Index into the list of label file names
                 % Depending on the number of corresponding label files take an appropriate action
                 if isempty(nFile)
                     disp('_jk No corresponding label file found.')
@@ -451,9 +451,6 @@ classdef label < handle
                     else
                         pause(0.01)
                         [obj.sigInfo, lblD, obj.lblSet] = loadLabel(fullfile(obj.filep,obj.currentFilen)); %#ok<ASGLU> % Function loadLabel is in a separate file.
-% newVN = lblD.Properties.VariableNames
-% oldVN = obj.lblDef.Properties.VariableNames
-                        
                         if length(obj.lblClassesToShow) ~= size(obj.lblDef, 1)
                             obj.lblClassesToShow = true(size(obj.lblDef, 1), 1);
                             obj.lblClassesToEdit = false(size(obj.lblDef, 1), 1);
@@ -461,7 +458,7 @@ classdef label < handle
                     end
                 elseif length(nFile) == 1 %#ok<ISCL> % One corresponding file found.
                     obj.currentFilen = filen{nFile};
-                    pause(0.01) % I hope it could maybe prevent saving old data under this new name.
+                    pause(0.02) % I hope it could maybe prevent saving old data under this new name.
                     [obj.sigInfo, lblD, obj.lblSet] = loadLabel(fullfile(obj.filep,obj.currentFilen));
                     newLblD = [lblD; obj.lblDef];
                     [~, ia] = unique(newLblD.ClassName);
@@ -475,7 +472,15 @@ classdef label < handle
                     error(['_jk nFile = ', num2str(nFile)])
                 end
             end
+            originalSigInfo = obj.sigInfo;
             obj.updateSigInfo;
+            for kch = 1 : height(originalSigInfo)
+                indSubject = endsWith(obj.sigInfo.Subject, originalSigInfo.Subject(kch));
+                indChannel = obj.sigInfo.ChName == originalSigInfo.ChName(kch);
+                newChannel = find(indSubject & indChannel);
+                obj.lblSet.Channel(obj.lblSet.Channel == kch) = newChannel;
+                % pause
+            end
             obj.lblSetUpdateView;
             obj.controlObj.signalObj.lblPlot;
             obj.controlObj.h.eLabelpn.String = fullfile([obj.filep, '\'], char(obj.currentFilen));

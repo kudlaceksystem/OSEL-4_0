@@ -299,16 +299,19 @@ function sigTbl = loadSmrx(filepn)
     % Get channel names and number of channels
     nch = [];
     chnm = [];
-    chn = [];
-    for kch = 1 : 1000
-        [iOK, nm] = CEDS64ChanTitle(fhand, kch);
+    % % % % % % % chn = [];
+    for kc = 1 : 1000
+        [iOK, nm] = CEDS64ChanTitle(fhand, kc);
         if iOK == 0
-            nch(end+1) = kch; %#ok<AGROW>
+            nch(end+1) = kc; %#ok<AGROW>
             chnm{end+1} = nm; %#ok<AGROW>
-            chn(end+1) = kch;
+            % % % % % % chn(end+1) = kch;
         end
     end
-
+    whereIsKeyboard = find(strcmpi(chnm, 'Keyboard'));
+    nch(whereIsKeyboard) = [];
+    chnm(whereIsKeyboard) = [];
+    
     % Keep only ADC channels
     for k = 1 : length(nch)
         typ(k) = CEDS64ChanType(fhand, nch(k)); %#ok<AGROW> % Get channels type (ADC, Marker, etc.)
@@ -318,7 +321,7 @@ function sigTbl = loadSmrx(filepn)
     % Find what type of recording it is
     recType = 'general';
     for k = 1 : length(chnm)
-        r = regexpi(chnm{k}, '\w\w?-[ABCD]-\w+', 'start');
+        r = regexpi(chnm{k}, '\w\w*-[ABCD]\w*-\w+', 'start');
         if r == 1
             recType = 'prahaMotolChronic';
             break
@@ -330,6 +333,8 @@ function sigTbl = loadSmrx(filepn)
         case 'prahaMotolChronic'
             loadPrahaMotolChronic;
         case 'general'
+disp('Going to loadGeneral')
+pause
             loadGeneral;
     end
     
@@ -339,7 +344,7 @@ function sigTbl = loadSmrx(filepn)
         for kch2 = 1 : length(chnm)
             disp(['Loading channel ', num2str(kch2)])
             str = chnm{kch2};
-            r = regexpi(str, '\w\w?-[ABCD]-\w+', 'match');
+            r = regexpi(str, '\w\w*-[ABCD]\w*-\w+', 'match');
 %             r = regexpi(str, '\d\d\d\d\d\d_\d\d\d\d\d\d', 'match');
             if ~isempty(r)
                 s = strsplit(r{1}, '-');
@@ -349,7 +354,7 @@ function sigTbl = loadSmrx(filepn)
 %                 RecPosition = 'BranoAparatus';
 %                 Subject = 'BranoTheRat';
             else
-                r = regexpi(str, '\w\w?-[ABCD]', 'match');
+                r = regexpi(str, '\w\w*-[ABCD]\w*', 'match');
                 if ~isempty(r)
                     s = strsplit(r{1}, '-');
                     ChName = string(str);
@@ -365,7 +370,7 @@ function sigTbl = loadSmrx(filepn)
                     Subject = ""; % Will not be filled in since RecPosition is empty as well
                 end
             end
-            [durS] = CEDS64TicksToSecs(fhand, CEDS64ChanMaxTime(fhand, chn(kch2)));
+            [durS] = CEDS64TicksToSecs(fhand, CEDS64ChanMaxTime(fhand, nch(kch2)));
             % [~, td]  = CEDS64TimeDate(fhand);
             r = regexp(filen, '\d\d\d\d\d\d_\d\d\d\d\d\d', 'match');
             dt = r{1};
@@ -373,12 +378,12 @@ function sigTbl = loadSmrx(filepn)
             % SigStart = datetime(fliplr(td(2 : end)));
             SigEnd = datetime(datenum(SigStart(end)) + durS/3600/24, 'ConvertFrom', 'datenum');
             maxpoints = CEDS64MaxTime(fhand) + 2;
-            [iRead, shortvals, ~] = CEDS64ReadWaveS(fhand, chn(kch2), maxpoints, 0);
+            [iRead, shortvals, ~] = CEDS64ReadWaveS(fhand, nch(kch2), maxpoints, 0);
             y = single(shortvals);
-            [~, scale] = CEDS64ChanScale(fhand, chn(kch2));
-            [~, offset] = CEDS64ChanOffset(fhand, chn(kch2));
+            [~, scale] = CEDS64ChanScale(fhand, nch(kch2));
+            [~, offset] = CEDS64ChanOffset(fhand, nch(kch2));
             Data = {single(y*scale/6553.6 + offset)'};
-            Fs = double(CEDS64IdealRate(fhand, chn(kch2)));
+            Fs = double(CEDS64IdealRate(fhand, nch(kch2)));
             if Fs == 0 || iRead < 0
                 Fs = NaN;
                 Data = {NaN};
@@ -517,14 +522,14 @@ function sigTbl = loadRhd(filepn)
     [chnm, signalData, fs, digitalIn] = read_Intan_RHD2000_file(filepn);
     for kch2 = 1 : numel(chnm)
         str = char(chnm(kch2));
-        r = regexpi(str, '\w\w?-[ABCD]-\w+', 'match');
+        r = regexpi(str, '\w\w*-[ABCD]\w*-\w+', 'match');
         if ~isempty(r)
             s = strsplit(r{1}, '-');
             ChName = string(str);
             RecPosition = string(s{2});
             Subject = string(s{3});
         else
-            r = regexpi(str, '\w\w?-[ABCD]', 'match');
+            r = regexpi(str, '\w\w*-[ABCD]\w*', 'match');
             if ~isempty(r)
                 s = strsplit(r{1}, '-');
                 ChName = string(str);
@@ -590,14 +595,14 @@ function sigTbl = loadRhs(filepn)
     [chnm, signalData, fs, digitalIn] = read_Intan_RHS2000_file(filepn);
     for kch2 = 1 : numel(chnm)
         str = char(chnm(kch2));
-        r = regexpi(str, '\w\w?-[ABCD]-\w+', 'match');
+        r = regexpi(str, '\w\w*-[ABCD]\w*-\w+', 'match');
         if ~isempty(r)
             s = strsplit(r{1}, '-');
             ChName = string(str);
             RecPosition = string(s{2});
             Subject = string(s{3});
         else
-            r = regexpi(str, '\w\w?-[ABCD]', 'match');
+            r = regexpi(str, '\w\w*-[ABCD]\w*', 'match');
             if ~isempty(r)
                 s = strsplit(r{1}, '-');
                 ChName = string(str);
@@ -622,6 +627,10 @@ function sigTbl = loadRhs(filepn)
         Fs = double(fs);
         sigTbl(kch2, :) = table(Subject, ChName, SigStart, SigEnd, Fs, Data, RecPosition);
     end
+
+
+% % % sigTbl.Subject(2) = "JK007722a";
+% % % sigTbl.ChName(2) = "DF-A-JK007722a";
 
     % Add Digital In data
     subjects = unique(sigTbl.Subject);

@@ -3,7 +3,7 @@
 *.m~
 *.mdl.*
 *.slx.*
-loadpath.mat
+*loadpath.mat
 
 # Simulink cache and code generation
 slprj/
