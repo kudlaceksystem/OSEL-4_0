@@ -20,6 +20,8 @@ classdef connWindow < handle
         numBands = 5;
         hTitle
         hBandLabel   % text handles for band labels
+        method = 'MSC';   % 'MSC' or 'PSI'
+        hPopupMethod
 
     end
 
@@ -55,9 +57,9 @@ classdef connWindow < handle
                 'HorizontalAlignment','center', ...
                 'BackgroundColor', bg);
         
-            % 2) Row 2: window + step + Apply
+            % 2) Row 2: window + step + method
             y2 = topY - rowH - gapV - rowH;
-        
+            
             % Window size popup
             uicontrol('Parent',obj.hFig, 'Style','text', ...
                 'Units','normalized', ...
@@ -65,10 +67,10 @@ classdef connWindow < handle
                 'String','Window size [s]:', ...
                 'HorizontalAlignment','left', ...
                 'BackgroundColor', bg);
-        
+            
             winOptions = 1:0.5:10;
             winStr     = arrayfun(@(x)sprintf('%.1f',x), winOptions, 'UniformOutput',false);
-        
+            
             obj.hPopupWin = uicontrol('Parent',obj.hFig, 'Style','popupmenu', ...
                 'Units','normalized', ...
                 'Position',[0.21 y2 0.15 rowH], ...
@@ -76,7 +78,7 @@ classdef connWindow < handle
                 'Value', find(winOptions==obj.winSizeS,1), ...
                 'Callback',@(src,evt)obj.cbPopupWin(src), ...
                 'BackgroundColor', bg);
-        
+            
             % Step size popup
             uicontrol('Parent',obj.hFig, 'Style','text', ...
                 'Units','normalized', ...
@@ -84,11 +86,11 @@ classdef connWindow < handle
                 'String','Step size [s]:', ...
                 'HorizontalAlignment','left', ...
                 'BackgroundColor', bg);
-        
-            stepOptions =  [0.1:0.1:0.9, 1:0.5:10];
+            
+            stepOptions = [0.1:0.1:0.9, 1:0.5:10];
             stepStr     = arrayfun(@(x)sprintf('%.1f',x), stepOptions, 'UniformOutput',false);
             [~,idx0]    = min(abs(stepOptions - obj.stepSizeS));
-        
+            
             obj.hPopupStep = uicontrol('Parent',obj.hFig, 'Style','popupmenu', ...
                 'Units','normalized', ...
                 'Position',[0.55 y2 0.15 rowH], ...
@@ -96,31 +98,49 @@ classdef connWindow < handle
                 'Value', idx0, ...
                 'Callback',@(src,evt)obj.cbPopupStep(src), ...
                 'BackgroundColor', bg);
-        
-            % Apply button (same row)
-            obj.hButtonApply = uicontrol('Parent',obj.hFig, 'Style','pushbutton', ...
+            
+            % Method popup (MSC / PSI) in place of old Apply
+            uicontrol('Parent',obj.hFig, 'Style','text', ...
                 'Units','normalized', ...
-                'Position',[0.75 y2 0.20 rowH], ...
-                'String','Apply', ...               
-                'Callback',@(src,evt)obj.cbApply(), ...
+                'Position',[0.72 y2 0.10 rowH], ...
+                'String','Method:', ...
+                'HorizontalAlignment','left', ...
                 'BackgroundColor', bg);
-        
-            % 3) Row 3: Prev and Next
+            
+            obj.hPopupMethod = uicontrol('Parent',obj.hFig, 'Style','popupmenu', ...
+                'Units','normalized', ...
+                'Position',[0.82 y2 0.16 rowH], ...
+                'String',{'MSC','PSI'}, ...
+                'Value',1, ...                 % default MSC
+                'Callback',@(src,evt)obj.cbPopupMethod(src), ...
+                'BackgroundColor', bg);
+            
+            % 3) Row 3: Previous, Apply, Next
             y3 = y2 - rowH - gapV;
-        
+            
             obj.hButtonPrev = uicontrol('Parent',obj.hFig, 'Style','pushbutton', ...
                 'Units','normalized', ...
-                'Position',[0.21, y3, 0.15, rowH + 0.01], ...     
-                'String','<html>Previous <br> (ctrl+k)', ...
+                'Position',[0.21, y3, 0.15, rowH + 0.01], ...
+                'String', {'Previous', '(ctrl+k)'}, ...
                 'Callback',@(src,evt)obj.cbPrev(), ...
                 'BackgroundColor', bg);
-        
+     
+            
             obj.hButtonNext = uicontrol('Parent',obj.hFig, 'Style','pushbutton', ...
                 'Units','normalized', ...
                 'Position',[0.55, y3, 0.15, rowH + 0.01], ...
-                'String','<html>Next <br> (k)', ...
+                'String',{'Next','(k)'}, ...
                 'Callback',@(src,evt)obj.cbNext(), ...
                 'BackgroundColor', bg);
+                   
+            obj.hButtonApply = uicontrol('Parent',obj.hFig, 'Style','pushbutton', ...
+                'Units','normalized', ...
+                'Position',[0.82, y3, 0.15, rowH + 0.01], ...
+                'String','Apply', ...
+                'Callback',@(src,evt)obj.cbApply(), ...
+                'BackgroundColor', bg);
+
+
         
             % === Axes area for 5 bands ===
             axTop    = y3 - gapV;   % top of matrices area
@@ -222,6 +242,12 @@ classdef connWindow < handle
                     obj.stepSizeS, obj.winSizeS);
         end
 
+        function cbPopupMethod(obj, src)
+            methods = {'MSC','PSI'};
+            idx = src.Value;
+            obj.method = methods{idx};
+            fprintf('Connectivity method set to %s\n', obj.method);
+        end
 
 
 
@@ -294,11 +320,75 @@ classdef connWindow < handle
                 end
             end
         end
+
+        function Cmat = compute_psi_onewindow(obj, window_data, fs)
+            % Settings for PSI
+            settings.freq_bands    = [1 4; 4 8; 8 13; 13 30; 30 80];
+            settings.psi_tapsmofrq = 2;    % example; tune as needed
+            settings.psi_bandwidth = 5;    % example
+        
+            [nChan, nSamp] = size(window_data);
+            nBands         = size(settings.freq_bands,1);
+        
+            % Build FieldTrip-like data
+            data_ft            = [];
+            data_ft.fsample    = fs;
+            data_ft.trial      = {double(window_data)};
+            data_ft.time       = {(0:nSamp-1)/fs};
+            data_ft.label      = arrayfun(@(k) sprintf('ch%d',k), 1:nChan, 'uni', 0);
+        
+            % Spectral estimation
+            cfg           = [];
+            cfg.method    = 'mtmfft';
+            cfg.output    = 'fourier';
+            cfg.taper     = 'dpss';
+            cfg.foilim    = [min(settings.freq_bands(:)) max(settings.freq_bands(:))];
+            cfg.tapsmofrq = settings.psi_tapsmofrq;
+            cfg.pad       = 'nextpow2';
+        
+            freq = ft_freqanalysis(cfg, data_ft);
+        
+            % PSI
+            cfgc            = [];
+            cfgc.method     = 'psi';
+            cfgc.bandwidth  = settings.psi_bandwidth;
+            conn            = ft_connectivityanalysis(cfgc, freq);
+        
+            % Assume conn.psispctrm is [nChan x nChan x nFreq]
+            psi_freq = conn.psispctrm;
+            if ndims(psi_freq) ~= 3 || size(psi_freq,1) ~= nChan
+                error('Unexpected PSI output size; adjust compute_psi_onewindow.');
+            end
+        
+            freqs   = conn.freq(:);
+            Cmat    = zeros(nChan, nChan, nBands);
+        
+            for b = 1:nBands
+                f_lo = settings.freq_bands(b,1);
+                f_hi = settings.freq_bands(b,2);
+                mask = freqs >= f_lo & freqs <= f_hi;
+                if ~any(mask), continue; end
+                Cmat(:,:,b) = mean(psi_freq(:,:,mask), 3, 'omitnan');
+            end
+        end
+
+
+
+
+
         function computeAndPlot(obj, startS)
             winLenS = obj.winSizeS;
             [winData, fs] = obj.getWindowData(startS, winLenS);
-        
-            Cmat = obj.compute_msc_onewindow(winData, fs);
+            
+            switch obj.method
+                case 'MSC'
+                    Cmat = obj.compute_msc_onewindow(winData, fs);
+                case 'PSI'
+                    Cmat = obj.compute_psi_onewindow(winData, fs);  % to be implemented
+                otherwise
+                    error('Unknown connectivity method: %s', obj.method);
+            end
+            
         
             % Update global title with time window
             obj.hTitle.String = sprintf('Connectivity %.2f–%.2f s', startS, startS + winLenS);
