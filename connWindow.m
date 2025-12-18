@@ -36,12 +36,13 @@ classdef connWindow < handle
                 'NumberTitle','off', ...
                 'MenuBar','none', ...
                 'ToolBar','none', ...
-                'Position', double(pos));
+                'Position', double(pos), ...
+                'CloseRequestFcn', @(src,evt)obj.onClose());
         
             bg = get(obj.hFig,'Color');
         
             % === Top layout: 3 rows ===
-            rowH  = 0.05;    % height for each row
+            rowH  = 0.025;    % height for each row
             gapV  = 0.01;    % vertical gap between rows
             topY  = 1 - gapV;
         
@@ -84,7 +85,7 @@ classdef connWindow < handle
                 'HorizontalAlignment','left', ...
                 'BackgroundColor', bg);
         
-            stepOptions = 0.5:0.5:10;
+            stepOptions =  [0.1:0.1:0.9, 1:0.5:10];
             stepStr     = arrayfun(@(x)sprintf('%.1f',x), stepOptions, 'UniformOutput',false);
             [~,idx0]    = min(abs(stepOptions - obj.stepSizeS));
         
@@ -109,15 +110,15 @@ classdef connWindow < handle
         
             obj.hButtonPrev = uicontrol('Parent',obj.hFig, 'Style','pushbutton', ...
                 'Units','normalized', ...
-                'Position',[0.21 y3 0.15 rowH], ...     
-                'String','Previous (ctrl+k)', ...
+                'Position',[0.21, y3, 0.15, rowH + 0.01], ...     
+                'String','<html>Previous <br> (ctrl+k)', ...
                 'Callback',@(src,evt)obj.cbPrev(), ...
                 'BackgroundColor', bg);
         
             obj.hButtonNext = uicontrol('Parent',obj.hFig, 'Style','pushbutton', ...
                 'Units','normalized', ...
-                'Position',[0.55 y3 0.15 rowH], ...
-                'String','Next (k)', ...
+                'Position',[0.55, y3, 0.15, rowH + 0.01], ...
+                'String','<html>Next <br> (k)', ...
                 'Callback',@(src,evt)obj.cbNext(), ...
                 'BackgroundColor', bg);
         
@@ -173,9 +174,43 @@ classdef connWindow < handle
                     obj.winSizeS, obj.stepSizeS);
         end
 
+        function onClose(obj)
+            % 1) Clear reference in controlWindow
+            if ~isempty(obj.controlObj) && isprop(obj.controlObj,'connObj')
+                if isequal(obj.controlObj.connObj, obj)
+                    obj.controlObj.connObj = [];
+                end
+            end
         
+            % 2) Hide now line and connectivity window rectangle in signal view
+            sigObj = obj.controlObj.signalObj;
+        
+            % Hide rectangles
+            if isfield(sigObj.h,'pConn')
+                for k = 1:numel(sigObj.h.pConn)
+                    if ishghandle(sigObj.h.pConn(k))
+                        sigObj.h.pConn(k).Visible = 'off';
+                    end
+                end
+            end
+        
+            % Optionally hide now line as well
+            if isfield(sigObj.h,'lNow')
+                for k = 1:numel(sigObj.h.lNow)
+                    if ishghandle(sigObj.h.lNow(k))
+                        sigObj.h.lNow(k).Visible = 'off';
+                    end
+                end
+            end
+        
+            % 3) Finally delete the figure
+            if ishghandle(obj.hFig)
+                delete(obj.hFig);
+            end
+        end
+
        function cbPopupStep(obj, src)
-            stepOptions = 0.5:0.5:10;      % absolute step sizes
+            stepOptions = [0.1:0.1:1, 1:0.5:10];      % absolute step sizes
             idx = src.Value;
             step = stepOptions(idx);
         
@@ -192,15 +227,12 @@ classdef connWindow < handle
 
         % Apply button callback
         function cbApply(obj)
-            % Use current now line position as start of window
             obj.currentStartS = obj.controlObj.nowS;
-        
-            fprintf('Apply: win = %.3f s, step = %.3f s, start = %.3f s (nowS)\n', ...
-                    obj.winSizeS, obj.stepSizeS, obj.currentStartS);
-        
             obj.computeAndPlot(obj.currentStartS);
+        
+            % Update rectangle on signal
+            obj.controlObj.signalObj.connWindowUpdate;
         end
-
         function [winData, fs] = getWindowData(obj, startS, winLenS)
             % Uses controlObj.signalObj.plotTbl
             sigObj = obj.controlObj.signalObj;
@@ -283,6 +315,7 @@ classdef connWindow < handle
                 axis(ax,'image');
                 colormap(ax,"turbo");
                 colorbar(ax);
+                clim(ax,[0 1]);
         
                 % Y‑axis labels for every matrix, smaller font
                 set(ax,'YTick',1:nCh, ...
@@ -304,29 +337,16 @@ classdef connWindow < handle
         end
 
 
-        function cbNext(obj)
-            % Move window by step
+       function cbNext(obj)
             obj.currentStartS = obj.currentStartS + obj.stepSizeS;
-            'Next'
-        
-            % Update global now line position to the new window start
             obj.controlObj.nowS = obj.currentStartS;
-            disp(obj.controlObj.nowS)
         
-            % Redraw now line
-
-        
-            fprintf('Next: win = %.3f s, step = %.3f s, new start = %.3f s (nowS)\n', ...
-                    obj.winSizeS, obj.stepSizeS, obj.currentStartS);
-        
-            % Recompute connectivity for new window
             obj.computeAndPlot(obj.currentStartS);
-
-            obj.controlObj.signalObj.nowUpdate;
-
-                % Give keyboard focus back to control window
+            obj.controlObj.signalObj.connWindowUpdate;
+            obj.controlObj.signalObj.nowUpdate;  % keep now line in sync
+        
             if isfield(obj.controlObj.h,'f') && ishghandle(obj.controlObj.h.f)
-                figure(obj.controlObj.h.f);   % bring control window figure to front
+                figure(obj.controlObj.h.f);
             end
         end
 

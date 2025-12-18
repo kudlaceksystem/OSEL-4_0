@@ -262,7 +262,26 @@ classdef signal < handle
                 % Plot now line
                 obj.h.lNow(k) = line([obj.controlObj.nowS, obj.controlObj.nowS],...
                         mean(obj.h.axSig(k).YLim) + (obj.h.axSig(k).YLim - mean(obj.h.axSig(k).YLim))*1.2, 'ZData', [100 100],...
-                        'Color', obj.stg.sNowColor, 'AlignVertexCenters', 'on', 'LineJoin', 'chamfer', 'ButtonDownFcn', @obj.cbNow, 'LineWidth', 1.5, 'LineStyle', '--', 'Tag', 'now');
+                        'Color', obj.stg.sNowColor, 'AlignVertexCenters', 'on', 'LineJoin', ...
+                        'chamfer', 'ButtonDownFcn', @obj.cbNow, 'LineWidth', 1.5, 'LineStyle', '--', 'Tag', 'now');
+                % Pre-create connectivity window patch with zero width
+                yl    = obj.h.axSig(k).YLim;
+                yrect = mean(yl) + (yl - mean(yl))*1.0;
+                
+                x1 = obj.controlObj.nowS;
+                x2 = obj.controlObj.nowS;   % start == end -> invisible until updated
+                
+                obj.h.pConn(k) = patch( ...
+                    [x1 x2 x2 x1], ...
+                    [yrect(1) yrect(1) yrect(2) yrect(2)], ...
+                    obj.stg.sMeasureColor, ...
+                    'Parent', obj.h.axSig(k), ...
+                    'FaceAlpha', 0.15, ...
+                    'EdgeColor', 'none', ...
+                    'AlignVertexCenters', 'on', ...
+                    'ZData', -150*[1 1 1 1], ...
+                    'Visible','off', ...          % hidden until connObj exists
+                    'Tag','connWin');
             end
             if ~isempty(obj.controlObj.labelObj)
                 obj.controlObj.labelObj.setSignalAxesCallback;
@@ -393,6 +412,38 @@ isemptyConnObj_ = isempty(obj.controlObj.connObj)
             end
             'jsem tu'
         end
+
+        function obj = connWindowUpdate(obj)
+            % Only if connectivity window exists
+            if isempty(obj.controlObj.connObj) || ~isvalid(obj.controlObj.connObj)
+                return;
+            end
+        
+            if ~isfield(obj.h,'pConn')
+                return;   % should not happen now, but keep as safety
+            end
+        
+            winLen = obj.controlObj.connObj.winSizeS;
+            x1 = obj.controlObj.nowS;
+            x2 = obj.controlObj.nowS + winLen;
+        
+            numch = size(obj.plotTbl,1);
+            for k = 1:numch
+                if ~ishandle(obj.h.pConn(k)), continue; end
+        
+                % Update X coordinates
+                obj.h.pConn(k).XData = [x1 x2 x2 x1];
+        
+                % Refresh Y extent in case zoom changed
+                yl    = obj.h.axSig(k).YLim;
+                yrect = mean(yl) + (yl - mean(yl))*1.0;
+                obj.h.pConn(k).YData = [yrect(1) yrect(1) yrect(2) yrect(2)];
+        
+                % Make sure rectangle is visible now
+                obj.h.pConn(k).Visible = 'on';
+            end
+        end
+
         
         function obj = customAverageRefDialog(obj)   % Function for calculating average reference
             if obj.avgRefTF 
