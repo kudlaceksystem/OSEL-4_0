@@ -16,6 +16,36 @@ function [sigInfo, lblDef, lblSet] = loadLabel(filepn)
                 lblSet.Comment(ismissing(lblSet.Comment)) = "";
             end
             lblSet = lblSet(lblSet.Channel > 0, :); % Remove negative channels. Negative channels are used in analyses (e.g. -1 is logical function any, -2 is logical function all).
+            
+            % Check if the contents of the loaded file correspond to this file
+            fndattimStr = regexp(filepn, '\d\d\d\d\d\d_\d\d\d\d\d\d', 'match');
+            filenameDt = datetime(fndattimStr{1}, 'InputFormat', 'yyMMdd_HHmmss');
+            fcdattimStr = regexp(sigInfo.FileName, '\d\d\d\d\d\d_\d\d\d\d\d\d', 'match');
+            filecontDt = datetime(fcdattimStr{1}, 'InputFormat', 'yyMMdd_HHmmss');
+            if filenameDt ~= filecontDt
+                filepn
+                sigInfo
+                promptStr = ['loadLabel: File ', 10, ...
+                    filepn, 10, ...
+                    ' contains labels from a different file than its name suggests.']
+                warndlg(promptStr)
+            end
+            % Check if all the labels fall within SigStart and SigEnd
+            whichAreOutside = find(~all(lblSet.Start > (sigInfo.SigStart(1) - seconds(1)) & lblSet.End < (sigInfo.SigEnd(1) + seconds(1))));
+            if ~isempty(whichAreOutside)
+                sigInfo
+                lblSet
+                promptStr = ['loadLabel: Markers ', 10, num2str(whichAreOutside), 10, ' are outside the signal start and end.' ...
+                    'Do you want to delete these markers?'];
+                answer = questdlg(promptStr, 'Confirm', 'Yes', 'No', 'No');
+                switch answer
+                    case 'Yes'
+                        whichAreOutside
+                        lblSet(whichAreOutside, :) = [];
+                    case 'No'
+                        disp('Dialog closed or canceled')
+                end
+            end
     end
 end
 
