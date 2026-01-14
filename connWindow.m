@@ -373,9 +373,6 @@ classdef connWindow < handle
         end
 
 
-
-
-
         function computeAndPlot(obj, startS)
             winLenS = obj.winSizeS;
             [winData, fs] = obj.getWindowData(startS, winLenS);
@@ -383,8 +380,10 @@ classdef connWindow < handle
             switch obj.method
                 case 'MSC'
                     Cmat = obj.compute_msc_onewindow(winData, fs);
+                    lims = [0 1];
                 case 'PSI'
                     Cmat = obj.compute_psi_onewindow(winData, fs);  % to be implemented
+                    lims = [-1 1];
                 otherwise
                     error('Unknown connectivity method: %s', obj.method);
             end
@@ -405,7 +404,7 @@ classdef connWindow < handle
                 axis(ax,'image');
                 colormap(ax,"turbo");
                 colorbar(ax);
-                clim(ax,[0 1]);
+                clim(ax, lims);
         
                 % Y‑axis labels for every matrix, smaller font
                 set(ax,'YTick',1:nCh, ...
