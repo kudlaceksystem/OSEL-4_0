@@ -66,4 +66,8 @@ function s = stgs
     set(groot, 'DefaultFigureColor', s.defFigCol)
     set(groot, 'DefaultUipanelBackgroundColor', s.defFigCol)
     format compact
+
+    %% connectivity window
+    s.connFigPos = int64([0, 50, scrSz(3) - s.cFigPos(3), scrSz(4)-80]);
+
 end
