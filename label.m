@@ -428,6 +428,7 @@ classdef label < handle
         
         %% Label functions
         function obj = fileUpdate(obj)
+'label.fileUpdate'
             [obj.controlObj.signalObj.h.lNow.Visible] = deal('off'); % I don't know why I'm hiding the now line here :-D
             drawnow
             obj.currentFilen = '';
@@ -472,11 +473,16 @@ classdef label < handle
                     error(['_jk nFile = ', num2str(nFile)])
                 end
             end
+            
+            % Sort channels
             originalSigInfo = obj.sigInfo;
             obj.updateSigInfo;
+            
             for kch = 1 : height(originalSigInfo)
                 indSubject = endsWith(obj.sigInfo.Subject, originalSigInfo.Subject(kch));
-                indChannel = obj.sigInfo.ChName == originalSigInfo.ChName(kch);
+                chnm = strsplit(originalSigInfo.ChName(kch), '-');
+                chnm = chnm{1};
+                indChannel = startsWith(obj.sigInfo.ChName, chnm);
                 newChannel = find(indSubject & indChannel);
                 obj.lblSet.Channel(obj.lblSet.Channel == kch) = newChannel;
                 % pause
@@ -484,7 +490,26 @@ classdef label < handle
             obj.lblSetUpdateView;
             obj.controlObj.signalObj.lblPlot;
             obj.controlObj.h.eLabelpn.String = fullfile([obj.filep, '\'], char(obj.currentFilen));
-            
+
+            % Check if the contents of the loaded file correspond to this file
+            sigFilepn = obj.controlObj.signalObj.filepn(obj.controlObj.currentFile);
+            fndattimStr = regexp(sigFilepn, '\d\d\d\d\d\d_\d\d\d\d\d\d', 'match');
+            filenameDt = datetime(fndattimStr{1}, 'InputFormat', 'yyMMdd_HHmmss');
+            fcdattimStr = regexp(obj.sigInfo.FileName, '\d\d\d\d\d\d_\d\d\d\d\d\d', 'match');
+            filecontDt = datetime(fcdattimStr{1}, 'InputFormat', 'yyMMdd_HHmmss');
+            if filenameDt ~= filecontDt
+                sigFilepn
+                obj.sigInfo
+                warndlg('File contains labels from a different file than its name suggests.')
+            end
+
+            % Check if all the labels fall within SigStart and SigEnd
+            if ~all(obj.lblSet.Start > obj.sigInfo.SigStart(1) & obj.lblSet.End < obj.sigInfo.SigEnd(1))
+                obj.sigInfo
+                obj.lblSet
+                warndlg('File contains labels outside the signal start and end.')
+            end
+
             % Nested function
             function fln = userSelectFile % Nested function
                 hD = dialog('Position',[500 500 500 400],'Name','Multiple corresponding label files found');
@@ -527,7 +552,6 @@ classdef label < handle
             obj.shownLabels = find(showIdx);
             lblset = lblset(obj.shownLabels, :);
             obj.h.uitLblSet.Data = obj.stringToChar(table2cell(lblset(:, 1 : size(obj.h.uitLblSet.Data, 2)))); % Copy the data from lblset
-            % Colors
             obj.updateColors(obj.h.uitLblSet);
             % The upper tables
             tblToUpdate = {obj.h.uitLblSelShow, obj.h.uitLblSelEdit};
@@ -815,6 +839,7 @@ end
             obj.controlObj.h.eLabelpn.String = fullfile([obj.filep, '\'], char(obj.currentFilen));
         end
         function fileNumber = nextNonEmptyFile(obj)
+'I am here'
             hwb = waitbar(0, 'Searching for next non-empty label...');
 % % % % % % % %             if ~isempty(obj.lblSet)
 % % % % % % % %                 sigStarts = obj.controlObj.signalObj.sigTbl.SigStart(obj.lblSet.Channel); % Signal starts for each label. Most of the time signals start at the same time.
@@ -835,7 +860,29 @@ dt_ = dt
 mss = max(obj.controlObj.signalObj.sigTbl.SigStart); mss.Format = 'yyMMdd_HHmmss'; mss_ = mss
 
                 if datenum(datetime(dt, 'InputFormat', 'yyMMdd_HHmmss') - max(obj.controlObj.signalObj.sigTbl.SigStart)) > 5/24/3600
-                    [~, lbldef, lblset] = loadLabel(fullfile(obj.filep, filen{kf}));
+                    [siginfo, lbldef, lblset] = loadLabel(fullfile(obj.filep, filen{kf}));
+                    % Check if sigInfo.FileName corresponds to file name
+                    fndattimStr = regexp(filen{kf}, '\d\d\d\d\d\d_\d\d\d\d\d\d', 'match');
+                    filenameDt = datetime(fndattimStr{1}, 'InputFormat', 'yyMMdd_HHmmss');
+                    fcdattimStr = regexp(siginfo.FileName, '\d\d\d\d\d\d_\d\d\d\d\d\d', 'match');
+                    filecontDt = datetime(fcdattimStr{1}, 'InputFormat', 'yyMMdd_HHmmss');
+                    if filenameDt ~= filecontDt
+                        kf
+                        filen{kf}
+                        siginfo
+                        errordlg('File contains labels from a different file than its name suggests.')
+                    end
+
+                    % Check if all the labels fall within SigStart and SigEnd
+                    for kl = 1 : height(lblset)
+                        if ~all(lblset.Start > siginfo.SigStart & lblset.End < siginfo.SigEnd)
+                            siginfo
+                            lblset
+                            errordlg('File contains labels outside the signal start and end.')
+                        end
+                    end
+                    
+                    % Make sure we only search in relevant channels and classes
                     if obj.showShowedChannels
                         showChIdx = ismember(lblset.Channel, obj.controlObj.signalObj.chToPlot);
                     else
