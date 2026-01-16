@@ -2,17 +2,17 @@ classdef signal < handle
     properties
         filepn % Files' paths and names
 
-        sigTbl % Table with loaded signals.       Subject        ChName       SigStart       SigEnd      Fs           Data       
+        sigTbl % Table with loaded signals.       Subject        ChName       SigStart       SigEnd      Fs           Data
         plotTbl % Table containing only signals which will be plotted
         bipolarTbl % Table containing bipolar montage of the channels (substracted Neighbouring channels from same region)
         sigLenS % Duration of the longest channel (normally, all channels should have the same duration)
         chToPlot % Double array. Which channels should be plotted.
         verticalZoom % Double
         measurePoints % 2x2 double
-        
+
         previousCurrentPoint % Used for panning and zooming by mouse
         zoomPoints
-        
+
         fltUserSpecs % User-defined filter specifications
         fltUserTF % User-defined filter
         flt50HzTF % Should we filter 50 Hz hum?
@@ -23,14 +23,14 @@ classdef signal < handle
         whichChToFilter % Which channels should be filtered by the user filter
 
         bipolarTblTF % whether the plotTbl was created outside the plot function or not
-        
+
         stg % Settings created by stgs function
         key % Table of keyboard shortcuts created by keyShortTbl function
         h % Handles to graphic objects
-        
+
         controlObj % controlWindow object stored here
     end
-    
+
     methods
         function obj = signal(ctrObj, fpn) % controlObj passes filepn to the constructor in the fpn
             obj.filepn = fpn;
@@ -68,7 +68,7 @@ classdef signal < handle
                 obj.controlObj.plotLimS(1) = 0;
                 obj.controlObj.plotLimS(2) = obj.sigLenS;
             end
-     
+
             if length(chnmOld) ~= size(obj.sigTbl, 1)
                 obj.chToPlot = 1 : size(obj.sigTbl, 1);
             else
@@ -84,10 +84,10 @@ classdef signal < handle
             delete(obj.h.panChNm.Children); delete(obj.h.panSig.Children); delete(obj.h.panTime.Children);
             figure(obj.h.f)
             if isempty(obj.chToPlot)
-%                 obj.chToPlot = obj.sigTbl.ChName;
+                %                 obj.chToPlot = obj.sigTbl.ChName;
                 obj.chToPlot = 1 : size(obj.sigTbl, 1);
             end
-%             obj.plotTbl = obj.sigTbl(ismember(obj.sigTbl.ChName, obj.chToPlot), :);
+            %             obj.plotTbl = obj.sigTbl(ismember(obj.sigTbl.ChName, obj.chToPlot), :);
             obj.plotTbl = obj.sigTbl(obj.chToPlot, :);
 
             if ~obj.bipolarTF
@@ -124,31 +124,31 @@ classdef signal < handle
                     bkgClrAll = [1 0.6 0.6];
                 end
                 if k ==1
-                
-                obj.h.fltEnDis(k) = text(0,-0.8, fltString, 'VerticalAlignment', 'middle', 'Interpreter', 'none', 'BackgroundColor', bkgClr,...
-                    'ButtonDownFcn', @obj.usrFltOnOff, 'Tag', ['fltEnDis', num2str(k)],'FontSize',8);
-                obj.h.fltEnAllDis(k) = text(0,0.8, fltAllString, 'VerticalAlignment', 'top', 'Interpreter', 'none', 'BackgroundColor', bkgClrAll,...
-                    'ButtonDownFcn', @obj.usrFltOnOff, 'Tag', ['fltEnDis', num2str(k-1)]','FontSize',8);
+
+                    obj.h.fltEnDis(k) = text(0,-0.8, fltString, 'VerticalAlignment', 'middle', 'Interpreter', 'none', 'BackgroundColor', bkgClr,...
+                        'ButtonDownFcn', @obj.usrFltOnOff, 'Tag', ['fltEnDis', num2str(k)],'FontSize',8);
+                    obj.h.fltEnAllDis(k) = text(0,0.8, fltAllString, 'VerticalAlignment', 'top', 'Interpreter', 'none', 'BackgroundColor', bkgClrAll,...
+                        'ButtonDownFcn', @obj.usrFltOnOff, 'Tag', ['fltEnDis', num2str(k-1)]','FontSize',8);
                 else
                     obj.h.fltEnDis(k) = text(0,-0.8, fltString, 'VerticalAlignment', 'middle', 'Interpreter', 'none', 'BackgroundColor', bkgClr,...
-                    'ButtonDownFcn', @obj.usrFltOnOff, 'Tag', ['fltEnDis', num2str(k)],'FontSize',8);
+                        'ButtonDownFcn', @obj.usrFltOnOff, 'Tag', ['fltEnDis', num2str(k)],'FontSize',8);
                 end
             end
-            
+
             % Filtering
             if obj.flt50HzTF
                 for kch = 1 : size(obj.plotTbl, 1)
                     notchFr = 50;
                     stopFr = notchFr : notchFr : min(obj.plotTbl.Fs(kch) - 1, 200); % Minus 1 hertz so that we don't filetr at Fs/2 which would be useless
                     stopFrNorm = stopFr/obj.plotTbl.Fs(kch);
-                    
+
                     % Zeros
                     zrRe = cos(stopFrNorm*pi);
                     zrRe = [zrRe, fliplr(zrRe)];
                     zrIm = sin(stopFrNorm*pi);
                     zrIm = [zrIm, -fliplr(zrIm)];
                     zr = zrRe + 1i*zrIm;
-                    
+
                     % Poles
                     r = linspace(0.998, 0.998, size(stopFr, 2));
                     plRe = r.*cos(stopFrNorm*pi);
@@ -159,14 +159,14 @@ classdef signal < handle
                     % Coefficients
                     num = poly(zr);
                     den = poly(pl);
-                    
+
                     obj.plotTbl.Data{kch} = single(filtfilt(num, den, double(obj.plotTbl.Data{kch})));
-                    
+
                     clear zrRe zrIm plRe plIm zr pl num den
                 end
             end
-            
-            
+
+
             if obj.fltUserTF
                 if obj.fltUserSpecs.ApplyAll
                     obj.whichChToFilter(:)= true;
@@ -192,11 +192,10 @@ classdef signal < handle
                     end
                 end
             end
-            
 
             if obj.avgRefTF
-               selectedData = {};
-               for kcbx = 1:numel(obj.avgRefChannelNames)
+                selectedData = {};
+                for kcbx = 1:numel(obj.avgRefChannelNames)
                     chName = obj.avgRefChannelNames(kcbx);
                     chIdx = find(strcmp(obj.plotTbl.ChName, chName));
                     if ~isempty(chIdx)
@@ -207,8 +206,6 @@ classdef signal < handle
                 obj.plotTbl.Data =  cellfun(@(x) x - averageSignal, obj.plotTbl.Data, 'UniformOutput', false);
                 disp(['Applied saved average reference channels: ', strjoin(obj.avgRefChannelNames, ', ')]);
             end
-
-            
 
             % Plot signal and Now line
             obj.h.axSig = gobjects(numch, 1);
@@ -233,8 +230,8 @@ classdef signal < handle
                 obj.h.axSig(k).Units = 'pixels';
                 obj.h.axSig(k).Position(3) = obj.h.axSig(k).Position(3) - 50;
                 obj.h.axSig(k).Position(1) = 50;
-%                 obj.h.axSig(k).Position(2) = obj.h.axSig(k).Position(2) + 5;
-%                 obj.h.axSig(k).Position(4) = obj.h.axSig(k).Position(4) -10;
+                %                 obj.h.axSig(k).Position(2) = obj.h.axSig(k).Position(2) + 5;
+                %                 obj.h.axSig(k).Position(4) = obj.h.axSig(k).Position(4) -10;
                 obj.h.axSig(k).Position(2) = obj.h.axSig(k).Position(2);
                 obj.h.axSig(k).Position(4) = obj.h.axSig(k).Position(4);
                 obj.h.axSig(k).YRuler.Visible = 'on';
@@ -261,8 +258,8 @@ classdef signal < handle
                 end
                 % Plot now line
                 obj.h.lNow(k) = line([obj.controlObj.nowS, obj.controlObj.nowS],...
-                        mean(obj.h.axSig(k).YLim) + (obj.h.axSig(k).YLim - mean(obj.h.axSig(k).YLim))*1.2, 'ZData', [100 100],...
-                        'Color', obj.stg.sNowColor, 'AlignVertexCenters', 'on', 'LineJoin', 'chamfer', 'ButtonDownFcn', @obj.cbNow, 'LineWidth', 1.5, 'LineStyle', '--', 'Tag', 'now');
+                    mean(obj.h.axSig(k).YLim) + (obj.h.axSig(k).YLim - mean(obj.h.axSig(k).YLim))*1.2, 'ZData', [100 100],...
+                    'Color', obj.stg.sNowColor, 'AlignVertexCenters', 'on', 'LineJoin', 'chamfer', 'ButtonDownFcn', @obj.cbNow, 'LineWidth', 1.5, 'LineStyle', '--', 'Tag', 'now');
             end
             if ~isempty(obj.controlObj.labelObj)
                 obj.controlObj.labelObj.setSignalAxesCallback;
@@ -272,16 +269,16 @@ classdef signal < handle
             if isempty(obj.controlObj.videoObj)
                 [obj.h.lNow.Visible] = deal('off');
             end
-            
+
             % Plot time ticks
             obj.h.axTime = axes('Parent', obj.h.panTime, 'Position', [0, 0.9, 1, 1/numch],...
-                    'XLimMode', 'manual', 'YLimMode', 'manual', 'YLim', [-1 1], 'Visible', 'on', 'TickDir', 'out');
+                'XLimMode', 'manual', 'YLimMode', 'manual', 'YLim', [-1 1], 'Visible', 'on', 'TickDir', 'out');
             obj.h.axTime.YRuler.Visible = 'off';
             obj.h.axTime.Units = 'pixels';
             obj.h.axTime.Position(3) = obj.h.axTime.Position(3) - 50;
             obj.h.axTime.Position(1) = 50;
             obj.h.axTime.Units = 'Normalized';
-            
+
             % Dummy plot to get the ticks
             x = obj.controlObj.plotLimS(1) : 1/obj.plotTbl.Fs(1) : obj.controlObj.plotLimS(2) - 1/obj.plotTbl.Fs(1);
             y = NaN(size(x));
@@ -299,13 +296,13 @@ classdef signal < handle
             tickLabels = strtrim(sprintf('%s\\newline%s\n', labelArray{:}));
             obj.h.axTime.XTickLabel = [];
             obj.h.axTime.XTickLabel = tickLabels;
-            
+
             % Slider
             obj.h.panTime.Units = 'pixels';
             obj.h.slider = uicontrol('Style', 'slider', 'Parent', obj.h.panTime, 'Position', [50, 0, obj.h.panTime.Position(3) - 50, 15],...
                 'Callback', @obj.cbSlider);
             obj.h.panTime.Units = 'normalized';
-            
+
             % Slider
             slidSz = 1/(max(obj.sigLenS/obj.controlObj.plotLenS, 1.0001) - 1);
             obj.h.slider.Max = obj.sigLenS - obj.controlObj.plotLenS;
@@ -347,13 +344,13 @@ classdef signal < handle
             tickLabels = strtrim(sprintf('%s\\newline%s\n', labelArray{:}));
             obj.h.axTime.XTickLabel = [];
             obj.h.axTime.XTickLabel = tickLabels;
-            
+
             % Slider change
             slidSz = 1/(max(obj.sigLenS/obj.controlObj.plotLenS, 1.0001) - 1);
             obj.h.slider.Max = obj.sigLenS - obj.controlObj.plotLenS;
             obj.h.slider.SliderStep = [min(slidSz/10, 1), slidSz];
             obj.h.slider.Value = obj.controlObj.plotLimS(1)*0.999999;
-            
+
             %  Label update
             if ~isempty(obj.controlObj.labelObj)
                 obj.lblUpdate;
@@ -379,71 +376,103 @@ classdef signal < handle
                 end
             end
         end
-        
+
         function obj = customAverageRefDialog(obj)   % Function for calculating average reference
-            if obj.avgRefTF 
-                disp('Average Reference Mode is ON!!')
-                % Creates new dialog window
-                dialogAveRef = dialog('Position', [300, 300, 300, 50 + 30 * numel(obj.sigTbl.ChName)], 'Name','Average Reference Settings');
-                % Default Values
-                checkboxes = gobjects(numel(obj.sigTbl.ChName), 1);
+            if obj.avgRefTF
+
+                figHeight = 500;
+                figWidth = 300;
+                fig_averageRef = uifigure('Position',[300,300,figWidth,figHeight],'Name','Average Reference Settings');
+                fig_averageRef.CloseRequestFcn = @(f,~) cancelClose(f);
+                % Uicontrol separate calculation based on hemispheres
+                separateHemi = uicontrol('Parent', fig_averageRef, ...
+                    'Style', 'checkbox', ...
+                    'String', 'Separate Hemispheres', ...
+                    'Position', [10, figHeight-40, 200, 25], ...
+                    'Value', 0);
+                % Scrollable panel
+                scrollPanel = uipanel(fig_averageRef,'Position',[0,50,figWidth,figHeight-100]); %
+                scrollPanel.Scrollable = 'on';
+                lineHeight = 30;
+                checkboxes = gobjects(numel(obj.sigTbl.ChName),1);
+                avgRefChannelNames = false(numel(obj.sigTbl.ChName),1);
                 for kchbx = 1:numel(obj.sigTbl.ChName)
-                    checkboxes(kchbx) = uicontrol('Parent', dialogAveRef, ...
-                        'Style', 'checkbox', ...
-                        'Position', [50, 50 + (numel(obj.sigTbl.ChName) - kchbx) * 30, 200, 30], ...
+                    checkboxes(kchbx) = uicontrol('Parent', scrollPanel, ...
+                        'Style','checkbox', ...
+                        'Position',[10, (lineHeight*numel(obj.sigTbl.ChName)) - kchbx*lineHeight, 280, 25], ...
                         'String', obj.sigTbl.ChName{kchbx}, ...
                         'Value', ismember(obj.sigTbl.ChName{kchbx}, obj.sigTbl.ChName(obj.chToPlot)));
                     avgRefChannelNames(kchbx) = ismember(obj.sigTbl.ChName{kchbx}, obj.sigTbl.ChName(obj.chToPlot));
                 end
-               % "All" button
-                uicontrol('Parent', dialogAveRef, ...
-                    'Position', [50, 10, 50, 30], ...
-                    'String', 'All', ...
-                    'Callback', @(src, event) set(checkboxes, 'Value', 1));
-                % "None" button
-                uicontrol('Parent', dialogAveRef, ...
-                    'Position', [100, 10, 50, 30], ...
-                    'String', 'None', ...
-                    'Callback', @(src, event) set(checkboxes, 'Value', 0));
-                % OK button
-                btnOK = uicontrol('Parent',dialogAveRef, 'Position',[150,10,50,30], ...
-                    'String','OK', 'Callback',@okCallback);
-                % Cancel button
-                btnCancel = uicontrol('Parent',dialogAveRef, 'Position',[200,10,50,30], ...
-                    'String','Cancel', 'Callback',@cancelCallback);
-                % wait till user closes window
-                uiwait(dialogAveRef);
-               else
+                % Buttons (All / None / OK / Cancel)
+                btnAll = uicontrol('Parent', fig_averageRef, 'Position',[50,10,50,30], ...
+                    'String','All', 'Callback', @(src,event)set(checkboxes,'Value',1));
+                btnNone = uicontrol('Parent', fig_averageRef, 'Position',[100,10,50,30], ...
+                    'String','None', 'Callback', @(src,event)set(checkboxes,'Value',0));
+                btnOK = uicontrol('Parent',fig_averageRef, 'Position',[150,10,50,30], ...
+                    'String','OK', 'Callback', @okCallback);
+                btnCancel = uicontrol('Parent',fig_averageRef, 'Position',[200,10,50,30], ...
+                    'String','Cancel', 'Callback', @cancelCallback);
+                % Wait till user closes window
+                uiwait(fig_averageRef);
+            else
                 avgRefChannelNames = [];
                 disp('Average Reference Mode is OFF!!')
                 obj.plotTbl.Data = obj.sigTbl.Data(obj.chToPlot);
                 obj.sigUpdate;
             end
-            
             % If OK button pushed
             function avgRefChannelNames = okCallback(~,~)
+                disp('Average Reference Mode is ON!!');
                 selectedChannels = {};
                 selectedData = {};
                 for kcbx = 1:numel(checkboxes)
                     if checkboxes(kcbx).Value
                         selectedChannels{end+1} = obj.sigTbl.ChName{kcbx};
-                        selectedData{end+1,1} = obj.plotTbl.Data{obj.plotTbl.ChName ==selectedChannels{end}};
+                        selectedData{end+1,1} = obj.plotTbl.Data{obj.plotTbl.ChName == selectedChannels{end}};
                     end
                 end
                 obj.avgRefChannelNames = selectedChannels;
-                averageSignal = mean(cell2mat(selectedData),1);
-                obj.plotTbl.Data =  cellfun(@(x) x - averageSignal, obj.plotTbl.Data, 'UniformOutput', false);
-                disp (['User selected channels for average refrence calculation:',strjoin(selectedChannels, ', ')])
-                obj.sigUpdate;
-                close(dialogAveRef);  % close windows
-            end
+                if separateHemi.Value == 1
+                    leftIdx = selectedChannels(contains(selectedChannels,'L'));
+                    rightIdx = selectedChannels(contains(selectedChannels,'R'));
+                    leftSelected = find(ismember(obj.plotTbl.ChName, leftIdx));
+                    rightSelected = find(ismember(obj.plotTbl.ChName, rightIdx));
+                    if ~isempty(leftSelected)
+                        leftData = cell2mat(obj.plotTbl.Data(leftSelected));
+                        averageLeft = mean(leftData,1);
+                        contains(obj.plotTbl.ChName,'L')
+                        obj.plotTbl.Data(contains(obj.plotTbl.ChName,'L')) =  cellfun(@(x) x - averageLeft, obj.plotTbl.Data(contains(obj.plotTbl.ChName,'L')), 'UniformOutput', false);
 
+                    end
+                    if ~isempty(rightSelected)
+                        rightData = cell2mat(obj.plotTbl.Data(rightSelected));
+                        averageRight = mean(rightData,1);
+                        obj.plotTbl.Data(contains(obj.plotTbl.ChName,'R')) =  cellfun(@(x) x - averageRight, obj.plotTbl.Data(contains(obj.plotTbl.ChName,'R')), 'UniformOutput', false);
+
+                    end
+
+                else
+                    averageSignal = mean(cell2mat(selectedData),1);
+                    obj.plotTbl.Data =  cellfun(@(x) x - averageSignal, obj.plotTbl.Data, 'UniformOutput', false);
+                    disp (['User selected channels for average refrence calculation:',strjoin(selectedChannels, ', ')])
+                end
+                obj.sigUpdate;
+                fig_averageRef.CloseRequestFcn = '';
+                delete(fig_averageRef);  % close windows
+            end
             % If Cancel button pushed
             function cancelCallback(~,~)
-                delete(dialogAveRef); % close windows
+                obj.avgRefTF = false;
+                close(fig_averageRef); % close windows
+                disp('Average Reference Mode is OFF!!')
             end
-            
-
+            % Cancel function for x button
+            function cancelClose(f)
+                obj.avgRefTF = false;
+                delete(f);
+                disp('Average Reference Mode is OFF!!')
+            end
         end
         %% Zoom
         function obj = horizontalZoomIn(obj)
@@ -518,7 +547,7 @@ classdef signal < handle
                 end
             end
         end
-        
+
         %% Mouse zoom
         function obj = mouseZoomInDn(obj, src, ctrObj, direction) % src should be signal figure, i.e. should be equal to obj.h.f (but I did not check it)
             obj.zoomPoints(1) = src.CurrentObject.CurrentPoint(1);
@@ -532,9 +561,9 @@ classdef signal < handle
             end
             for k = 1 : numch
                 obj.h.pZoom(k) = patch(obj.h.axSig(k),...
-                        [obj.zoomPoints(1), obj.zoomPoints(2), obj.zoomPoints(2), obj.zoomPoints(1)],...
-                        repelem(mean(obj.h.axSig(k).YLim) + (obj.h.axSig(k).YLim - mean(obj.h.axSig(k).YLim))*1, 2),...
-                        col, 'AlignVertexCenters', 'on', 'ZData', -200*[1 1 1 1], 'EdgeColor', col);
+                    [obj.zoomPoints(1), obj.zoomPoints(2), obj.zoomPoints(2), obj.zoomPoints(1)],...
+                    repelem(mean(obj.h.axSig(k).YLim) + (obj.h.axSig(k).YLim - mean(obj.h.axSig(k).YLim))*1, 2),...
+                    col, 'AlignVertexCenters', 'on', 'ZData', -200*[1 1 1 1], 'EdgeColor', col);
             end
             obj.h.f.WindowButtonMotionFcn = @ctrObj.cbSigZoomButtMotion;
             obj.h.f.WindowButtonUpFcn = {@ctrObj.cbSigZoomButtUp, direction};
@@ -563,7 +592,7 @@ classdef signal < handle
             delete(obj.h.pZoom); obj.h = rmfield(obj.h, 'pZoom');
             obj.controlObj.mouseZoomEscapeFinished;
         end
-        
+
         %% Mouse measure
         function obj = mouseMeasureDn(obj, src, ctrObj) % src should be signal figure, i.e. should be equal to obj.h.f (but I did not check it)
             obj.measurePoints(1, [1, 2]) = src.CurrentObject.CurrentPoint(1, [1, 2]);
@@ -571,14 +600,14 @@ classdef signal < handle
             numch = size(obj.plotTbl, 1);
             for k = 1 : numch
                 obj.h.lMeas(k) = line(obj.h.axSig(k),...
-                        [obj.measurePoints(1), obj.measurePoints(1)],...
-                        mean(obj.h.axSig(k).YLim) + (obj.h.axSig(k).YLim - mean(obj.h.axSig(k).YLim))*1,...
-                        'AlignVertexCenters', 'off', 'ZData', 200*[1 1], 'Color', obj.stg.sMeasureColor);
+                    [obj.measurePoints(1), obj.measurePoints(1)],...
+                    mean(obj.h.axSig(k).YLim) + (obj.h.axSig(k).YLim - mean(obj.h.axSig(k).YLim))*1,...
+                    'AlignVertexCenters', 'off', 'ZData', 200*[1 1], 'Color', obj.stg.sMeasureColor);
             end
             hold on
             obj.h.lMeas(end + 1) = line(src.CurrentObject, src.CurrentObject.XLim, [obj.measurePoints(3) obj.measurePoints(3)], 'Color', obj.stg.sMeasureColor);
             te = ['a=', num2str(obj.measurePoints(3), '%4.1f'), 10,...
-                  't=', num2str(obj.measurePoints(1), '%04.1f')];
+                't=', num2str(obj.measurePoints(1), '%04.1f')];
             obj.h.tMeas = text(obj.measurePoints(1, 1) - double(diff(src.CurrentObject.XLim)/200), obj.measurePoints(1, 2) - double(diff(src.CurrentObject.YLim)/40), te,...
                 'HorizontalAlignment', 'right', 'VerticalAlignment', 'top',...
                 'BackgroundColor', 'w');
@@ -598,8 +627,8 @@ classdef signal < handle
                     repelem(obj.measurePoints([1 2], 2)', 2),...
                     'b', 'FaceColor', 'none', 'EdgeColor', obj.stg.sMeasureColor, 'Parent', src.CurrentObject);
                 te = ['A=', num2str(diff(obj.measurePoints(:, 2)), '%04.8f'), 10,...
-                      'T=', num2str(diff(obj.measurePoints(:, 1)), '%04.8f'), 10,...
-                      'f=', num2str(1/diff(obj.measurePoints(:, 1)), '%04.8f')];
+                    'T=', num2str(diff(obj.measurePoints(:, 1)), '%04.8f'), 10,...
+                    'f=', num2str(1/diff(obj.measurePoints(:, 1)), '%04.8f')];
                 obj.h.tMeas = text(obj.measurePoints(1, 1) - diff(obj.h.axSig(1).XLim/200)   , obj.measurePoints(1, 2), te,...
                     'HorizontalAlignment', 'right', 'VerticalAlignment', 'bottom',...
                     'BackgroundColor', 'w');
@@ -607,8 +636,8 @@ classdef signal < handle
                 obj.h.pMeas.XData = [obj.measurePoints([1 2], 1)', obj.measurePoints([2 1], 1)'];
                 obj.h.pMeas.YData = repelem(obj.measurePoints([1 2], 2)', 2);
                 te = ['A=', num2str(diff(obj.measurePoints(:, 2)), '%0-4.2f'), 10,...
-                      'T=', num2str(diff(obj.measurePoints(:, 1)), '%0-4.3f'), 10,...
-                      'f=', num2str(1/diff(obj.measurePoints(:, 1)), '%0-4.2f')];
+                    'T=', num2str(diff(obj.measurePoints(:, 1)), '%0-4.3f'), 10,...
+                    'f=', num2str(1/diff(obj.measurePoints(:, 1)), '%0-4.2f')];
                 obj.h.tMeas.String = te;
             end
         end
@@ -628,7 +657,7 @@ classdef signal < handle
                 obj.h = rmfield(obj.h, 'tMeas');
             end
         end
-        
+
         %% Channel selection
         function obj = channels(obj)
             % Create uifigure
@@ -648,7 +677,7 @@ classdef signal < handle
             editable = false(1, size(data, 2));
             editable(:, strcmp(data.Properties.VariableNames, 'Show')) = true;
             editable(:, strcmp(data.Properties.VariableNames, 'Order')) = true;
-            
+
             % Create the table in the UIfigure
             obj.h.uitChannels = uitable(obj.h.channels, 'Data', data, 'ColumnSortable', false, 'ColumnEditable', editable,...
                 'Position', [20, 80, obj.stg.sChannelsFigPos(3) - 40, obj.stg.sChannelsFigPos(4) - 100], 'Tag', 'uitChannel'); % Use the class method as the callback
@@ -671,7 +700,7 @@ classdef signal < handle
             obj.h.butt(7) = uibutton(obj.h.channels, 'push', 'Position', [20 + obj.stg.sChannelsFigPos(3) - 120, 20, 80, 30],...
                 'Text', 'Load Order', 'ButtonPushedFcn', @obj.cbUicontrol, 'Tag', 'channelsLoadOrder');  % The callback function knows which button was pressed from the Tag
         end
-        
+
         function obj = channelsApply(obj)
             obj.chToPlot = obj.h.uitChannels.Data.Order; % Type channels number based on user's desire
             obj.chToPlot = obj.chToPlot (find(obj.h.uitChannels.Data.Show)); % Select channels
@@ -701,7 +730,7 @@ classdef signal < handle
             obj.h.uitChannels.Data.Order = Order;
             obj.sigTbl.Order = obj.h.uitChannels.Data.Order;
             figure(obj.h.channels);
-            uistack(obj.h.channels, 'top'); 
+            uistack(obj.h.channels, 'top');
         end
         function obj = channelsNone(obj)
             % Order = NaN(size(obj.sigTbl, 1),1);
@@ -710,7 +739,7 @@ classdef signal < handle
             % obj.h.uitChannels.Data.Order = Order;
             % obj.sigTbl.Order = obj.h.uitChannels.Data.Order;
             figure(obj.h.channels);
-            uistack(obj.h.channels, 'top'); 
+            uistack(obj.h.channels, 'top');
         end
         function obj = channelsSaveOrder(obj)
             % Extract the "Order" column
@@ -740,7 +769,7 @@ classdef signal < handle
             % Determine full file path
             fullFilePath = fullfile(filePath, fileName);
             figure(obj.h.channels);
-            uistack(obj.h.channels, 'top'); 
+            uistack(obj.h.channels, 'top');
             % Load data based on file format as CSV for now.
             try
                 switch fileFilter
@@ -791,7 +820,7 @@ classdef signal < handle
             obj.controlObj.sliderMove(src);
         end
         function cbLbl(obj, src, evt)
-           obj.controlObj.labelObj.lblClicked(src, evt);
+            obj.controlObj.labelObj.lblClicked(src, evt);
         end
         function cbFocus(obj, ~, ~)
             obj.controlObj.cbSigFocus;
@@ -801,7 +830,7 @@ classdef signal < handle
             if obj.fltUserSpecs.ApplyAll
                 obj.fltUserSpecs.ApplyAll = false;
                 if ch ~=0
-                obj.whichChToFilter(ch)= false;
+                    obj.whichChToFilter(ch)= false;
                 end
             else
                 if ch == 0
@@ -816,8 +845,8 @@ classdef signal < handle
             end
             obj.plotSignal;
         end
-       
-        
+
+
         %% Label
         function obj = newLabel(obj)
             lblObj = obj.controlObj.labelObj;
@@ -864,8 +893,8 @@ classdef signal < handle
             end
             obj.h.lblPa
             drawnow
-%             obj.controlObj.labelObj.plottedLabelsIDs = sort([obj.controlObj.labelObj.plottedLabelsIDs; lblObj.lblSet.ID(end)]);
-%             obj.controlObj.labelObj.lblSetUpdatePlotted(obj.controlObj.labelObj.plottedLabelsIDs);
+            %             obj.controlObj.labelObj.plottedLabelsIDs = sort([obj.controlObj.labelObj.plottedLabelsIDs; lblObj.lblSet.ID(end)]);
+            %             obj.controlObj.labelObj.lblSetUpdatePlotted(obj.controlObj.labelObj.plottedLabelsIDs);
         end
         function obj = lblUpdate(obj)
             if isempty(obj.controlObj.labelObj)
@@ -878,7 +907,7 @@ classdef signal < handle
             if isempty(lbl)
                 return
             end
-            
+
             % The labels of ChannelMode 'all' will be drawn in the first axes. Determine which channel is in the first axes.
             nAxForAll = obj.chToPlot(1); % We will draw the labels of ChannelMode 'all' in these axes
             channels = lbl.Channel;
@@ -889,7 +918,7 @@ classdef signal < handle
             nID = lbl.ID(nLbl);
             obj.controlObj.labelObj.plottedLabelsIDs = nID;
 
-            
+
             % Delete those not contained in nLbl
             del; % Nested function. Delete only those which are no longer in the view
             for k = 1 : length(nLbl)
@@ -926,9 +955,9 @@ classdef signal < handle
                             obj.h.lblPa(lbl.ID(nLbl(k))).XData(1) = max(st, obj.controlObj.plotLimS(1));
                             obj.h.lblPa(lbl.ID(nLbl(k))).XData(4) = max(st, obj.controlObj.plotLimS(1));
                     end
-                        continue
+                    continue
                 end
-                
+
                 % Draw the graphic objects
                 switch def.LabelType
                     case 'point'
@@ -949,12 +978,12 @@ classdef signal < handle
                 end
             end
             drawnow
-%             if ~contains(char(obj.h.f.WindowButtonMotionFcn), 'cbSigButtMotion') % Do this only if the user is not panning, since it is slow
-%                 drawnow
-%                 obj.controlObj.labelObj.lblSetUpdatePlotted(obj.controlObj.labelObj.plottedLabelsIDs);
-%                 drawnow
-%             end
-            
+            %             if ~contains(char(obj.h.f.WindowButtonMotionFcn), 'cbSigButtMotion') % Do this only if the user is not panning, since it is slow
+            %                 drawnow
+            %                 obj.controlObj.labelObj.lblSetUpdatePlotted(obj.controlObj.labelObj.plottedLabelsIDs);
+            %                 drawnow
+            %             end
+
             % Nested functions
             function del
                 graphObjNm = {'lblLA', 'lblLS', 'lblLE', 'lblPa'};
@@ -979,17 +1008,17 @@ classdef signal < handle
                     if isfield(obj.h, graphObjNm{kg})
                         if length(obj.h.(graphObjNm{kg})) >= id
                             if isprop(obj.h.(graphObjNm{kg})(id), 'Tag')
-%                                 tic
-%                                 idg = str2double(obj.h.(graphObjNm{kg})(id).Tag(6 : end));
-%                                 if double(id) == idg && isvalid(obj.h.(graphObjNm{kg})(id))
-%                                     TF = true;
-%                                 end
-% % % % %                                 idg = str2double(obj.h.(graphObjNm{kg})(id).Tag(6 : end));
+                                %                                 tic
+                                %                                 idg = str2double(obj.h.(graphObjNm{kg})(id).Tag(6 : end));
+                                %                                 if double(id) == idg && isvalid(obj.h.(graphObjNm{kg})(id))
+                                %                                     TF = true;
+                                %                                 end
+                                % % % % %                                 idg = str2double(obj.h.(graphObjNm{kg})(id).Tag(6 : end));
                                 if isvalid(obj.h.(graphObjNm{kg})(id))
                                     TF = true;
                                 end
-                                
-%                                 toc
+
+                                %                                 toc
                             end
                         end
                     end
@@ -1054,11 +1083,11 @@ classdef signal < handle
                     case 'point'
                         delete(obj.h.lblLA(ID(k)))
                     case 'roi'
-%                         if isfield(obj.h, 'lblLS')
-                            delete(obj.h.lblLS(ID(k)))
-                            delete(obj.h.lblLE(ID(k)))
-                            delete(obj.h.lblPa(ID(k)))
-%                         end
+                        %                         if isfield(obj.h, 'lblLS')
+                        delete(obj.h.lblLS(ID(k)))
+                        delete(obj.h.lblLE(ID(k)))
+                        delete(obj.h.lblPa(ID(k)))
+                        %                         end
                 end
             end
         end
@@ -1077,11 +1106,11 @@ classdef signal < handle
             end
             obj.lblUpdate;
         end
-        
+
         %% Current source density
         % function obj = showBipolarMontage(obj)
         %     obj.plotTbl = obj.plotTbl.Data{1}*0;
-        % 
+        %
         %     if bipolar_checkbox == true
         %         calculations_exported;
         %         bipolar_montage
@@ -1089,36 +1118,36 @@ classdef signal < handle
         %     % obj.plotTbl = obj.sigTbl(obj.chToPlot, :);
 
 
-            % At the end of this function, call
-            % obj.plotSignal
+        % At the end of this function, call
+        % obj.plotSignal
 
 
 
-           % Second task, full of beauty, for more distant future: try to get the colorful picture in the background
+        % Second task, full of beauty, for more distant future: try to get the colorful picture in the background
         % end
-        
+
         %% Bipolar montage
-       function obj = applyBipolar(obj)
+        function obj = applyBipolar(obj)
             if obj.bipolarTF
                 numCh = size(obj.sigTbl, 1);
-        
+
                 if mod(numCh, 2) ~= 0
                     warning('Bipolar montage requires even number of channels. Skipping last channel.');
                     numCh = numCh - 1;
                 end
-        
+
                 newTbl = obj.sigTbl(1 : 2 : numCh - 1, :);
                 for k = 1 : 2 : numCh
                     ch1Name = obj.sigTbl.ChName(k);
                     ch2Name = obj.sigTbl.ChName(k + 1);
                     sig1 = obj.sigTbl.Data{k};
                     sig2 = obj.sigTbl.Data{k + 1};
-        
+
                     if length(sig1) ~= length(sig2)
                         warning('Skipping pair %s-%s due to length mismatch.', ch1Name, ch2Name);
                         continue
                     end
-        
+
                     newSignal = sig1 - sig2;
                     idx = (k+1)/2;
                     newTbl.Data{idx} = newSignal;
@@ -1139,16 +1168,16 @@ classdef signal < handle
         %% General
         function obj = makeFigure(obj, ctrObj)
             % Create figure
-% % %             obj.h.f = figure('MenuBar', 'none', 'ToolBar', 'none', 'Position', obj.stg.sFigPos,...
-% % %                 'WindowKeyPressFcn', @ctrObj.cbKey,...
-% % %                 'WindowKeyReleaseFcn', @ctrObj.cbKeyRelease,...
-% % %                 'WindowButtonDownFcn', @ctrObj.cbSigButtDn,...
-% % %                 'WindowButtonUpFcn', @ctrObj.cbSigButtUp,...
-% % %                 'WindowScrollWheelFcn', @ctrObj.cbSigScrollWheel,...
-% % %                 'CloseRequestFcn', @obj.delete,...
-% % %                 'Interruptible', 'on',...
-% % %                 'BusyAction', 'queue',...
-% % %                 'Tag', 'signal');
+            % % %             obj.h.f = figure('MenuBar', 'none', 'ToolBar', 'none', 'Position', obj.stg.sFigPos,...
+            % % %                 'WindowKeyPressFcn', @ctrObj.cbKey,...
+            % % %                 'WindowKeyReleaseFcn', @ctrObj.cbKeyRelease,...
+            % % %                 'WindowButtonDownFcn', @ctrObj.cbSigButtDn,...
+            % % %                 'WindowButtonUpFcn', @ctrObj.cbSigButtUp,...
+            % % %                 'WindowScrollWheelFcn', @ctrObj.cbSigScrollWheel,...
+            % % %                 'CloseRequestFcn', @obj.delete,...
+            % % %                 'Interruptible', 'on',...
+            % % %                 'BusyAction', 'queue',...
+            % % %                 'Tag', 'signal');
             obj.h.f = ctrObj.h.f;
             % Create panels
             indent = obj.stg.sigPanIndent;
@@ -1164,9 +1193,9 @@ classdef signal < handle
             % Create buttons
             subsCommand = find(obj.key.Command == "horizontalZoomIn", 1); % Subscript into keyShortTbl of given command
             buttPos = [obj.stg.sigPanIndent(1)*2/3, 0, obj.stg.sigPanIndent(1)/3, obj.stg.sigPanIndent(2);
-                       obj.stg.sigPanIndent(1)*1/3, 0, obj.stg.sigPanIndent(1)/3, obj.stg.sigPanIndent(2);
-                       0, obj.stg.sigPanIndent(2)/2, obj.stg.sigPanIndent(1)/3, obj.stg.sigPanIndent(2)/2;
-                       0, 0, obj.stg.sigPanIndent(1)/3, obj.stg.sigPanIndent(2)/2];
+                obj.stg.sigPanIndent(1)*1/3, 0, obj.stg.sigPanIndent(1)/3, obj.stg.sigPanIndent(2);
+                0, obj.stg.sigPanIndent(2)/2, obj.stg.sigPanIndent(1)/3, obj.stg.sigPanIndent(2)/2;
+                0, 0, obj.stg.sigPanIndent(1)/3, obj.stg.sigPanIndent(2)/2];
             buttStr = {'+', '-', '+', '-'};
             for kz = 1 : 4
                 tooltipStr = (obj.key.Command(subsCommand) + ", " + obj.key.Modifier(subsCommand) + "+" + obj.key.Shortcut(subsCommand));
@@ -1203,20 +1232,20 @@ classdef signal < handle
             end
             delete(obj.h.f);
         end
-        
+
         function tbl = getCurrentTbl(obj)
             % % % if obj.bipolarTblTF
-                tbl = obj.plotTbl;
+            tbl = obj.plotTbl;
             % % % else
             % % %     tbl = obj.sigTbl;
             % % % end
         end
-    
+
         function obj = setCurrentTbl(obj, tbl)
             % % % if obj.bipolarTblTF
-                obj.plotTbl = tbl;
+            obj.plotTbl = tbl;
             % % % else
-                % % % obj.sigTbl = tbl;
+            % % % obj.sigTbl = tbl;
             % % % end
         end
     end
