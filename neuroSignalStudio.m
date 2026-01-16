@@ -314,10 +314,15 @@ classdef neuroSignalStudio < matlab.apps.AppBase
                 definput = {'50'}; % as micrometer
                 dims = [1 50];
                 app.elecDis = inputdlg(prompt, dlgtitle, dims, definput);
-                waitDialog = uiprogressdlg(app.NeuroSignalStudioUIFigure, 'Title', 'Please Wait', ...
-                        'Message', 'Calculating Current Source Density...', ...
-                        'Indeterminate', 'on');
                 if ~isempty(app.elecDis) % Check if the user clicked 'OK'
+                    answer_channel_selection = questdlg('Would you like to go to the channel selection menu?    Please click Yes if you are using hemispheric laminar electrodes.', ...
+                    	'Channel selection', ...
+                    	'Yes','No','No');
+
+
+
+
+
                     app.ContourPlotCSDButton.BackgroundColor = [0.94 0.94 0.94]; % button color
                     userValue = str2num(app.elecDis{1}); % Convert to numeric
                     if isempty(userValue)
@@ -351,6 +356,26 @@ classdef neuroSignalStudio < matlab.apps.AppBase
                             ttime = app.time(1,1:length(data_calculated));
                             ttitle = 'CSD Map with LFPs ';
                             disp('Raw signal is using to calculate CSD...');
+
+                            if strcmp(answer_channel_selection, 'Yes')
+                                answer_hemisphere_selection = questdlg('Which hemisphere are you intersted in? ', ...
+                                	'Hemisphere selection', ...
+                                	'Left','Right','Right');
+                                switch answer_hemisphere_selection
+                                    case 'Left'
+                                        data_calculated = data_calculated(contains(app.channelName,'L'),:);
+                                        channelName = app.channelName(contains(app.channelName,'L'));
+                                    case 'Right'
+                                        data_calculated = data_calculated(contains(app.channelName,'R'),:);
+                                        channelName = app.channelName(contains(app.channelName,'R'));
+                                        % case 'Both'
+                                        % If it is needed, It will be adjusted
+                                        % in the future
+                                end
+                            end
+                            waitDialog = uiprogressdlg(app.NeuroSignalStudioUIFigure, 'Title', 'Please Wait', ...
+                                'Message', 'Calculating Current Source Density...', ...
+                                'Indeterminate', 'on');
                         end
                         app.csdMatrix = NaN(size(data_calculated,1),size(data_calculated,2)); % matrix of NaNs
                         for ii =  1:size(data_calculated,2) % point by point calculation
@@ -362,17 +387,20 @@ classdef neuroSignalStudio < matlab.apps.AppBase
                         app.csdMatrix = app.csdMatrix(2:end-1,:);
                         app.csdMatrix = app.csdMatrix / unitLength^3;
                         app.csdMatrix = app.csdMatrix * unitCurrent;
-                        for i = 1:length(app.channelName)
-                            name = app.channelName(i);
+                        for i = 1:length(channelName)
+                            name = channelName(i);
                             parts = split(name, '-');
                             if numel(parts) > 2
-                                app.channelName(i) = strjoin(parts(1:2), '-');
+                                channelName(i) = strjoin(parts(1:2), '-');
                             end
                         end
-                        ChnCSD = app.channelName(2:end-1);
+                        ChnCSD = channelName(2:end-1);
 
                     else % Non-uniform electrode distance
                         disp(['User entered: ', num2str(userValue),' µm', '  >>Type of CSD: Unequal spacing general CSD']);
+                        waitDialog = uiprogressdlg(app.NeuroSignalStudioUIFigure, 'Title', 'Please Wait', ...
+                            'Message', 'Calculating Current Source Density...', ...
+                            'Indeterminate', 'on');
                         interElectrodeDistance = userValue*10^-6; % meter  this is the spacing between two adjacent electrodes.
                         unitLength = 1000; % unit length 1 mm : % converts CSD units to mm as default
                         unitCurrent = 10^6; % specifies the units of current for the CSD output. Unit is as default microamps
@@ -415,39 +443,50 @@ classdef neuroSignalStudio < matlab.apps.AppBase
                         app.csdMatrix = app.csdMatrix(2:end-1,:);
                         app.csdMatrix = app.csdMatrix / unitLength^3;
                         app.csdMatrix = app.csdMatrix * unitCurrent;
-                        
-                        for i = 1:length(app.channelName)
-                            name = app.channelName(i);
+                        channelName = app.channelName;
+                        for i = 1:length(channelName)
+                            name = channelName(i);
                             parts = split(name, '-');
                             if numel(parts) > 2
-                                app.channelName(i) = strjoin(parts(1:2), '-');
+                                channelName(i) = strjoin(parts(1:2), '-');
                             end
                         end
-                        ChnCSD = app.channelName(2:end-1);
+                        ChnCSD = channelName(2:end-1);
                     end
 
-                    
+
                     % Visualize CSD as raw plot (line plot)
                     fprintf('CSD color map with superimposing its time series ploting......')
                     figure ('Name', 'Current Source Density: NeuroSignal Studio','Position', [100, 100, 1200, 800]);
                     set(gcf, 'OuterPosition', [43 87 557 677]);
                     set(findall(gcf, '-property', 'FontSize'), 'FontSize', 10);
-                    
+
                     subplot(1,2,1)
                     dataTime = [data_calculated ; ttime];
-                    dataTbl = array2table(dataTime',"VariableNames",[app.channelName; 'Time(s)']);
+                    dataTbl = array2table(dataTime',"VariableNames",[channelName; 'Time(s)']);
                     p1=stackedplot(dataTbl, "XVariable","Time(s)"); title('LFPs')
-                    for i = 1:numel(p1.DisplayLabels)
-                        p1.AxesProperties(i).YLimits = [min(data_calculated(:)) max(data_calculated(:))];
-                    end
+                    ax_p1 = findobj(p1.NodeChildren,'Type','Axes');
+
+                    ymin = min(data_calculated, [], 'all');
+                    ymax = max(data_calculated, [], 'all');
+                    set(ax_p1,'YLim',[ymin ymax]);
+
+                    % for i = 1:numel(p1.DisplayLabels)
+                    %     p1.AxesProperties(i).YLimits = [min(data_calculated(:)) max(data_calculated(:))];
+                    % end
 
                     subplot(1,2,2)
                     csdTime = [app.csdMatrix; ttime];
-                    csdTbl = array2table(csdTime',"VariableNames",[app.channelName(2:end-1); 'Time(s)']);
+                    csdTbl = array2table(csdTime',"VariableNames",[ChnCSD; 'Time(s)']);
                     p2=stackedplot(csdTbl, "XVariable","Time(s)"); title('CSD')
-                    for i = 1:numel(p2.DisplayLabels)
-                        p2.AxesProperties(i).YLimits = [min(app.csdMatrix(:)) max(app.csdMatrix(:))];
-                    end
+                    ax_p2 = findobj(p1.NodeChildren,'Type','Axes');
+
+                    ymin = min(app.csdMatrix, [], 'all');
+                    ymax = max(app.csdMatrix, [], 'all');
+                    set(ax_p2,'YLim',[ymin ymax]);
+                    % for i = 1:numel(p2.DisplayLabels)
+                    %     p2.AxesProperties(i).YLimits = [min(app.csdMatrix(:)) max(app.csdMatrix(:))];
+                    % end
 
 
                     % Visualize CSD as colormap
@@ -467,7 +506,7 @@ classdef neuroSignalStudio < matlab.apps.AppBase
                     ylabel('Channel');
                     title('Voltage Map of LFPs');
                     yticks(1:size(data_calculated,1));
-                    yticklabels(flipud(app.channelName));   % flip to match flipud(V)
+                    yticklabels(flipud(channelName));   % flip to match flipud(V)
                     hold on;
                     for ch = 1:size(data_calculated,1)
                         % normalize each channel to [0, 1]
@@ -481,7 +520,7 @@ classdef neuroSignalStudio < matlab.apps.AppBase
 
                     subplot(1,2,2)
                     % % Plot CSD as Map
-                    
+
                     im1 = imagesc(ttime, 1:size(app.csdMatrix,1), flipud(app.csdMatrix));
                     axis xy
                     im1.AlphaData = 1; % change this value to change the foreground image transparency
@@ -677,7 +716,7 @@ classdef neuroSignalStudio < matlab.apps.AppBase
                         definput = {num2str(userValue1);num2str(userValue2);num2str(userValue3)};
                         msg = sprintf('The specified high cut off value is bigger than the Nyquist frequency (%.1d Hz).\nPlease enter a valid frequency below this limit.', nyquist);
                         warndlg(msg, 'Invalid Input');
-                        
+
                     else
                         isValid = true;
                     end
@@ -730,708 +769,719 @@ classdef neuroSignalStudio < matlab.apps.AppBase
 
             end
         end
-    
 
-% Button pushed function: CombFilterButton
-    function CombFilterButtonPushed(app, event)
-        if isempty(app.data)
-            warndlg('Please load the signal first!', 'Warning');
-        else
-            Q = 35;
-            foe = 50; %the frequency to remove from the signal.
-            BW = 2*(foe/(app.fs/2))/Q;
-            [b,a] = iircomb(round(app.fs/foe),BW, 'notch');
-            filteredData = [];
-            for i = 1:size(app.data,1)
-                filteredData(i,:) = filtfilt(b,a,app.data(i,:));
-            end
-            app.data =filteredData;
-            disp('Comb Filter was applied successfully!')
-            if isempty(app.obj.signalObj) % If signal imported with import new signal button
-                delete(app.UIAxes.Children(1:end))
-                app.Image_2.Visible = 'on';
-                app.Image.Visible ="off";
-                app.UIAxes.Visible = 'on';
-                hold(app.UIAxes,'on');
-                offset = 2500;
+
+        % Button pushed function: CombFilterButton
+        function CombFilterButtonPushed(app, event)
+            if isempty(app.data)
+                warndlg('Please load the signal first!', 'Warning');
+            else
+                Q = 35;
+                foe = 50; %the frequency to remove from the signal.
+                BW = 2*(foe/(app.fs/2))/Q;
+                [b,a] = iircomb(round(app.fs/foe),BW, 'notch');
+                filteredData = [];
                 for i = 1:size(app.data,1)
-                    plot(app.UIAxes,app.time, app.data(i, :) + offset * (i - 1), 'LineWidth', 1.5); % Plot each signal with an offset
+                    filteredData(i,:) = filtfilt(b,a,app.data(i,:));
                 end
-                app.UIAxes.YTick = (offset * (0:size(app.data,1)-1)); % Set y-ticks to match the channel offsets
-                app.UIAxes.YTickLabel = (arrayfun(@(x) ['Ch ', num2str(x)],app.channelName, 'UniformOutput', false)); % Label y-ticks
-                hold(app.UIAxes,'off');
-            else % If the signal comes from the OSEL
-                delete(app.fig.Children)
-                delete(app.figChnNames)
-                numch = length(app.channelName);
-                for kch = 1 : numch
+                app.data =filteredData;
+                disp('Comb Filter was applied successfully!')
+                if isempty(app.obj.signalObj) % If signal imported with import new signal button
+                    delete(app.UIAxes.Children(1:end))
+                    app.Image_2.Visible = 'on';
+                    app.Image.Visible ="off";
+                    app.UIAxes.Visible = 'on';
+                    hold(app.UIAxes,'on');
+                    offset = 2500;
+                    for i = 1:size(app.data,1)
+                        plot(app.UIAxes,app.time, app.data(i, :) + offset * (i - 1), 'LineWidth', 1.5); % Plot each signal with an offset
+                    end
+                    app.UIAxes.YTick = (offset * (0:size(app.data,1)-1)); % Set y-ticks to match the channel offsets
+                    app.UIAxes.YTickLabel = (arrayfun(@(x) ['Ch ', num2str(x)],app.channelName, 'UniformOutput', false)); % Label y-ticks
+                    hold(app.UIAxes,'off');
+                else % If the signal comes from the OSEL
+                    delete(app.fig.Children)
+                    delete(app.figChnNames)
+                    numch = length(app.channelName);
+                    for kch = 1 : numch
+                        % Add new axes in fig
+                        app.ax =  axes('Parent', app.fig, 'Position', [0.08, (numch - kch+1)/(numch+1), 0.9, 0.8/numch], 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'on','Clipping', 'off', 'PickableParts', 'all');
+                        plot( app.ax, app.time, app.data(kch,:));
+                        % Add Channels name to axes
+                        app.figChnNames = annotation(app.fig, 'textbox', 'String', string(app.channelName{kch}), 'Position', [0.05, (numch - kch+1)/(numch+1), 0.01, 0.035], 'EdgeColor', 'none', 'FontSize', 8,'HorizontalAlignment', 'right');
+                        if kch == numch
+                            xlabel(app.ax, 'Time (s)', 'FontSize', 8, 'FontWeight', 'bold');
+                        else
+                            app.ax.XTickLabel = [];
+                        end
+                    end
+                    linkaxes(findobj(app.fig, 'Type', 'axes'), 'xy');
+                    app.fig.Name =  'Comb Filtered Data: NeuroSignal Studio';
+                end
+            end
+        end
+        % Button pushed function: BipolarMontageButton
+        function BipolarMontageButtonPushed(app, event)
+            if isempty(app.data)
+                warndlg('Please load the signal first!', 'Warning');
+            else
+                bipolarEEG = app.data(1:end-1, :) - app.data(2:end, :);
+                numChannels = length(app.channelName);
+                channelLabels = cell(1, numChannels - 1);
+                for i = 1:numChannels-1
+                    channelLabels{i} = strcat(string(app.channelName{i}), "-", string(app.channelName{i+1}));
+                end
+                figBipolar = figure('Name', 'Bipolar Montage: NeuroSignal Studio',...
+                    'NumberTitle', 'on','Position', [600, 100, 1200, 800]);
+                numch = length(channelLabels); % Number of Channel
+                height = 0.95/numch;
+                % Add Channels name to axes
+                for kch = 1:numch
                     % Add new axes in fig
-                    app.ax =  axes('Parent', app.fig, 'Position', [0.08, (numch - kch+1)/(numch+1), 0.9, 0.8/numch], 'XLimMode', 'manual', 'YLimMode', 'manual', 'Visible', 'on','Clipping', 'off', 'PickableParts', 'all');
-                    plot( app.ax, app.time, app.data(kch,:));
-                    % Add Channels name to axes
-                    app.figChnNames = annotation(app.fig, 'textbox', 'String', string(app.channelName{kch}), 'Position', [0.05, (numch - kch+1)/(numch+1), 0.01, 0.035], 'EdgeColor', 'none', 'FontSize', 8,'HorizontalAlignment', 'right');
+                    ax =  axes('Parent', figBipolar, 'Position', [0.08,1 - kch * height, 0.9, height],...
+                        'XLimMode', 'manual', 'YLimMode', 'manual', ...
+                        'Visible', 'on','Clipping', 'off',...
+                        'PickableParts', 'all');
+                    % Plot signals
+                    plot(ax, app.time, bipolarEEG(kch,:));
+                    app.figChnNames = annotation(figBipolar, 'textbox', ...
+                        'String', string(channelLabels{kch}), ...
+                        'Position', [0.05,  (1 - kch * height)-height/2, 0.01, height], ...
+                        'EdgeColor', 'none', ...
+                        'FontSize', 8, ...
+                        'HorizontalAlignment', 'right');
+                    ylim(ax,[min(bipolarEEG,[],'all') max(bipolarEEG,[],'all')]);
                     if kch == numch
-                        xlabel(app.ax, 'Time (s)', 'FontSize', 8, 'FontWeight', 'bold');
+                        xlabel(ax, 'Time (s)', 'FontSize', 8, 'FontWeight', 'bold');
                     else
-                        app.ax.XTickLabel = [];
+                        ax.XTickLabel = [];
                     end
                 end
-                linkaxes(findobj(app.fig, 'Type', 'axes'), 'xy');
-                app.fig.Name =  'Comb Filtered Data: NeuroSignal Studio';
+                % app.data = bipolarEEG;
+                % app.channelName = string(channelLabels');
+                linkaxes(findobj(figBipolar, 'Type', 'axes'), 'x');
             end
         end
-    end
-    % Button pushed function: BipolarMontageButton
-    function BipolarMontageButtonPushed(app, event)
-        if isempty(app.data)
-            warndlg('Please load the signal first!', 'Warning');
-        else
-            bipolarEEG = app.data(1:end-1, :) - app.data(2:end, :);
-            numChannels = length(app.channelName);
-            channelLabels = cell(1, numChannels - 1);
-            for i = 1:numChannels-1
-                channelLabels{i} = strcat(string(app.channelName{i}), "-", string(app.channelName{i+1}));
-            end
-            figBipolar = figure('Name', 'Bipolar Montage: NeuroSignal Studio',...
-                'NumberTitle', 'on','Position', [600, 100, 1200, 800]);
-            numch = length(channelLabels); % Number of Channel
-            height = 0.95/numch;
-            % Add Channels name to axes
-            for kch = 1:numch
-                % Add new axes in fig
-                ax =  axes('Parent', figBipolar, 'Position', [0.08,1 - kch * height, 0.9, height],...
-                    'XLimMode', 'manual', 'YLimMode', 'manual', ...
-                    'Visible', 'on','Clipping', 'off',...
-                    'PickableParts', 'all');
-                % Plot signals
-                plot(ax, app.time, bipolarEEG(kch,:));
-                app.figChnNames = annotation(figBipolar, 'textbox', ...
-                    'String', string(channelLabels{kch}), ...
-                    'Position', [0.05,  (1 - kch * height)-height/2, 0.01, height], ...
-                    'EdgeColor', 'none', ...
-                    'FontSize', 8, ...
-                    'HorizontalAlignment', 'right');
-                ylim(ax,[min(bipolarEEG,[],'all') max(bipolarEEG,[],'all')]);
-                if kch == numch
-                    xlabel(ax, 'Time (s)', 'FontSize', 8, 'FontWeight', 'bold');
+
+        % Button pushed function: ContourPlotCSDButton
+        function ContourPlotCSDButtonPushed(app, event)
+            if ~isempty(app.elecDis)
+                figure('Name', 'Contour Plot of the Current Source Density: NeuroSignal Studio','Position', [600, 100, 1200, 800]);
+                set(gcf, 'OuterPosition', [1128 87 306 677]);
+                set(findall(gcf, '-property', 'FontSize'), 'FontSize', 10);
+                contourf(app.time(1,1:length(app.csdMatrix)), 1:size(app.csdMatrix,1), flipud(app.csdMatrix),15, '-.', 'edgecolor','none'); % 'k' for black contour lines
+                title('Contour Plot of CSD');
+                % Add colorbar
+                colormap('jet')
+                xlabel('Time (s)');
+                c=colorbar('SouthOutside');
+                vmax = max(abs(app.csdMatrix(:)), [], 'omitnan');
+                clim([-vmax, vmax]);
+                c.YTick = [-vmax, 0, vmax];
+                c.YTickLabel = {'Sink', 'CSD(\muA/mm^3)','Source'};
+                c.Label.Rotation = 0;
+                c.TickDirection = 'in';
+                c.FontSize = 12;
+                c.FontWeight = 'normal';
+                MC = max(max(abs(normalize(app.csdMatrix,2,"range")))); % absolute maximum CSD
+                n = size(app.csdMatrix,1);
+                yAxisMColC = (MC*n : -MC : MC)';   % sütun vektörü
+                yAxisMColC = flipud(yAxisMColC)';
+                set(gca,'Ytick',[yAxisMColC]);
+                % axis([0,inf,MC*0.5,(MC*(size(app.csdMatrix,1)))+(MC*0.5)]);
+                % set(gca,'Ytick',1:MC:length(app.channelName(2:end-1)));
+                yticklabels(arrayfun(@(x) [num2str(x)],flipud(app.channelName(2:end-1)), 'UniformOutput', false)); % Label y-ticks
+
+                % ylim([0.5 length(app.channelName(2:end-1))+0.5])
+            else
+                if isempty(app.data)
+                    warndlg('Please load the signal first!', 'Warning');
                 else
-                    ax.XTickLabel = [];
+                    warndlg('Please use the "CSD" button first!', 'Warning');
                 end
+                % fprintf(2, '!! Warning: Please use the "CSD" button first!\n');
+
             end
-            % app.data = bipolarEEG;
-            % app.channelName = string(channelLabels');
-            linkaxes(findobj(figBipolar, 'Type', 'axes'), 'x');
         end
-    end
 
-    % Button pushed function: ContourPlotCSDButton
-    function ContourPlotCSDButtonPushed(app, event)
-        if ~isempty(app.elecDis)
-            figure('Name', 'Contour Plot of the Current Source Density: NeuroSignal Studio','Position', [600, 100, 1200, 800]);
-            set(gcf, 'OuterPosition', [1128 87 306 677]);
-            set(findall(gcf, '-property', 'FontSize'), 'FontSize', 10);
-            contourf(app.time(1,1:length(app.csdMatrix)), 1:size(app.csdMatrix,1), flipud(app.csdMatrix),15, '-.', 'edgecolor','none'); % 'k' for black contour lines
-            title('Contour Plot of CSD');
-            % Add colorbar
-            colormap('jet')
-            xlabel('Time (s)');
-            c=colorbar('SouthOutside');
-            vmax = max(abs(app.csdMatrix(:)), [], 'omitnan');
-            clim([-vmax, vmax]);
-            c.YTick = [-vmax, 0, vmax];
-            c.YTickLabel = {'Sink', 'CSD(\muA/mm^3)','Source'};
-            c.Label.Rotation = 0;
-            c.TickDirection = 'in';
-            c.FontSize = 12;
-            c.FontWeight = 'normal';
-            MC = max(max(abs(normalize(app.csdMatrix,2,"range")))); % absolute maximum CSD
-            n = size(app.csdMatrix,1);
-            yAxisMColC = (MC*n : -MC : MC)';   % sütun vektörü
-            yAxisMColC = flipud(yAxisMColC)';
-            set(gca,'Ytick',[yAxisMColC]);
-            % axis([0,inf,MC*0.5,(MC*(size(app.csdMatrix,1)))+(MC*0.5)]);
-            % set(gca,'Ytick',1:MC:length(app.channelName(2:end-1)));
-            yticklabels(arrayfun(@(x) [num2str(x)],flipud(app.channelName(2:end-1)), 'UniformOutput', false)); % Label y-ticks
+        % Button pushed function: TimeFrequencyButton (Scalogram)
+        function TimeFrequencyButtonPushed(app, event)
+            if license('test', 'Wavelet_Toolbox')
+                if isempty(app.data)
+                    warndlg('Please load the signal first!', 'Warning');
+                else
+                    if app.fs> 5000
+                        answer = questdlg(['Sampling rate is ' num2str(app.fs/1000) 'kHz. Do you want to resample the data to 5kHz?'], 'Confirm', 'Yes', 'No', 'No');
+                        switch answer
+                            case 'Yes'
+                                waitDialog = uiprogressdlg(app.NeuroSignalStudioUIFigure, 'Title', 'Please Wait', ...
+                                    'Message', 'Resampling data...', ...
+                                    'Indeterminate', 'on');
 
-            % ylim([0.5 length(app.channelName(2:end-1))+0.5])
-        else
-            if isempty(app.data)
-                warndlg('Please load the signal first!', 'Warning');
-            else
-                warndlg('Please use the "CSD" button first!', 'Warning');
-            end
-            % fprintf(2, '!! Warning: Please use the "CSD" button first!\n');
+                                disp('Resampling data to 5kHz....Please wait....')
+                                d = app.data; % d should be chn x sample
+                                fs_resampled = 5000;
+                                tic
+                                d_res = [];
+                                for ch=1:size(d,1)
+                                    d_res(ch,:)=resample(d(ch,:),fs_resampled,app.fs,floor(app.fs/2));
+                                end
+                                toc
+                                fs = fs_resampled;
+                                d_res = d_res'; % d_res = Samp x channel
+                                disp('Resampling (to 5kHz) is done!')
+                                close(waitDialog)
+                            case 'No'
+                                d_res =  app.data';
+                                fs = app.fs;
+                            otherwise
+                                disp('Dialog closed or cancelled')
+                        end
 
-        end
-    end
-
-    % Button pushed function: TimeFrequencyButton (Scalogram)
-    function TimeFrequencyButtonPushed(app, event)
-        if license('test', 'Wavelet_Toolbox')
-            if isempty(app.data)
-                warndlg('Please load the signal first!', 'Warning');
-            else
-                if app.fs> 5000
-                    answer = questdlg(['Sampling rate is ' num2str(app.fs/1000) 'kHz. Do you want to resample the data to 5kHz?'], 'Confirm', 'Yes', 'No', 'No');
-                    switch answer
-                        case 'Yes'
-                            waitDialog = uiprogressdlg(app.NeuroSignalStudioUIFigure, 'Title', 'Please Wait', ...
-                                'Message', 'Resampling data...', ...
-                                'Indeterminate', 'on');
-
-                            disp('Resampling data to 5kHz....Please wait....')
-                            d = app.data; % d should be chn x sample
-                            fs_resampled = 5000;
-                            tic
-                            d_res = [];
-                            for ch=1:size(d,1)
-                                d_res(ch,:)=resample(d(ch,:),fs_resampled,app.fs,floor(app.fs/2));
-                            end
-                            toc
-                            fs = fs_resampled;
-                            d_res = d_res'; % d_res = Samp x channel
-                            disp('Resampling (to 5kHz) is done!')
-                            close(waitDialog)
-                        case 'No'
-                            d_res =  app.data';
-                            fs = app.fs;
-                        otherwise
-                            disp('Dialog closed or cancelled')
+                    else
+                        d_res =  app.data';
+                        fs = app.fs;
                     end
+                    time =  (0:length(d_res)-1) / fs; % Time in seconds
 
-                else
-                    d_res =  app.data';
-                    fs = app.fs;
+                    % d_res = [d_res time'];
+                    dataL = d_res';  % dataL = channel x samp
+                    prompt = {'Enter channel number: '; 'Enter Low Frequency:'; 'Enter High Frequency'};
+                    dlgtitle = 'Scalogram Parameters';
+                    definput = {'1';'80';'800'};
+                    dims = [1 40];
+                    UserIn = inputdlg(prompt,dlgtitle, dims, definput);
+                    if ~isempty(UserIn) % Check if the user clicked 'OK'
+                        waitDialog = uiprogressdlg(app.NeuroSignalStudioUIFigure, 'Title', 'Please Wait', ...
+                            'Message', 'Plotting scalogram...', ...
+                            'Indeterminate', 'on');
+                        userValue1 = str2double(UserIn{1}); % Convert to numeric
+                        userValue2 = str2double(UserIn{2}); % Convert to numeric
+                        userValue3 = str2double(UserIn{3}); % Convert to numeric
+                        disp(['TF Representation for Channel: ', num2str(userValue1),' is been calculating.....']);
+                        channel_num =userValue1;
+                        signalLength = size(d_res,1);
+                        fb = cwtfilterbank('SignalLength',signalLength,'SamplingFrequency',fs,'VoicesPerOctave',24, ...
+                            'FrequencyLimits',[2 fs/2]);
+                        [cfs,frq] = cwt(dataL(channel_num,:),FilterBank=fb);
+                        figure,cwt(dataL(channel_num,:),fs);
+                        colormap jet
+                        figure('Name', 'Scalogram: NeuroSignal Studio',...
+                            'NumberTitle', 'on','Position', [600, 100, 1200, 800]);
+                        subplot(2,1,1)
+                        plot(time,dataL(channel_num,:))
+                        axis tight
+                        title("EEG Signal and Scalogram")
+                        xlabel("Time (s)")
+                        ylabel({string(app.channelName{channel_num});'Amplitude'})
+                        subplot(2,1,2)
+                        surface(time,frq,abs(cfs))
+                        caxis([min(abs(cfs(:))) max(abs(cfs(:)))])
+                        colormap jet
+                        axis tight
+                        shading flat
+                        xlabel("Time (s)")
+                        ylabel("Frequency (Hz)")
+                        ylim([userValue2 userValue3])
+                        % set(gca,"yscale","log")
+                        disp(['TF Representation for Channel: ', num2str(userValue1),' is calculated. Figures are been creating...']);
+
+                        close(waitDialog)
+                    end
                 end
-                time =  (0:length(d_res)-1) / fs; % Time in seconds
-
-                % d_res = [d_res time'];
-                dataL = d_res';  % dataL = channel x samp
-                prompt = {'Enter channel number: '; 'Enter Low Frequency:'; 'Enter High Frequency'};
-                dlgtitle = 'Scalogram Parameters';
-                definput = {'1';'80';'800'};
-                dims = [1 40];
-                UserIn = inputdlg(prompt,dlgtitle, dims, definput);
-                if ~isempty(UserIn) % Check if the user clicked 'OK'
-                    waitDialog = uiprogressdlg(app.NeuroSignalStudioUIFigure, 'Title', 'Please Wait', ...
-                        'Message', 'Plotting scalogram...', ...
-                        'Indeterminate', 'on');
-                    userValue1 = str2double(UserIn{1}); % Convert to numeric
-                    userValue2 = str2double(UserIn{2}); % Convert to numeric
-                    userValue3 = str2double(UserIn{3}); % Convert to numeric
-                    disp(['TF Representation for Channel: ', num2str(userValue1),' is been calculating.....']);
-                    channel_num =userValue1;
-                    signalLength = size(d_res,1);
-                    fb = cwtfilterbank('SignalLength',signalLength,'SamplingFrequency',fs,'VoicesPerOctave',24, ...
-                        'FrequencyLimits',[2 fs/2]);
-                    [cfs,frq] = cwt(dataL(channel_num,:),FilterBank=fb);
-                    figure,cwt(dataL(channel_num,:),fs);
-                    colormap jet 
-                    figure('Name', 'Scalogram: NeuroSignal Studio',...
-                        'NumberTitle', 'on','Position', [600, 100, 1200, 800]);
-                    subplot(2,1,1)
-                    plot(time,dataL(channel_num,:))
-                    axis tight
-                    title("EEG Signal and Scalogram")
-                    xlabel("Time (s)")
-                    ylabel({string(app.channelName{channel_num});'Amplitude'})
-                    subplot(2,1,2)
-                    surface(time,frq,abs(cfs))
-                    caxis([min(abs(cfs(:))) max(abs(cfs(:)))])
-                    colormap jet 
-                    axis tight
-                    shading flat
-                    xlabel("Time (s)")
-                    ylabel("Frequency (Hz)")
-                    ylim([userValue2 userValue3])
-                    % set(gca,"yscale","log")
-                    disp(['TF Representation for Channel: ', num2str(userValue1),' is calculated. Figures are been creating...']);
-
-                    close(waitDialog)
-                end
-            end
-        else
-            warndlg('Wavelet Toolbox is NOT installed. Please Install Wavelet Toolbox using MATLAB Add-Ons', 'Warning');
-
-        end
-    end
-
-    % Button pushed function: RunHFODetector
-    function RunHFODetector(app, event)
-        % GUI window
-        fig = figure('Name','HFO Detector','Position',[300 100 1000 700]);
-        % Buttons and the panel for ground truth
-        controlPanel = uipanel('Title','Controls','FontSize',12,...
-            'Position',[.02 .68 .28 .30]);
-        % Load button
-        uicontrol(controlPanel,'Style','pushbutton','String','Load Signal',...
-            'FontSize',10,...
-            'Position',[10 95 120 30],'Callback',@loadSignal);
-        % ML button
-        uicontrol(controlPanel,'Style','pushbutton','String','Run Ensemble',...
-            'FontSize',10,...
-            'Position',[10 50 120 30],'Callback',@runML);
-        % Channel
-        uicontrol(controlPanel,'Style','text','String','Channel Num:',...
-            'Position',[10 130 120 30],'HorizontalAlignment','left','FontSize',10);
-        % Ground truth edit box
-        gtInput = uicontrol(controlPanel,'Style','edit','String','1',...
-            'Position',[140 130 50 30],'BackgroundColor','white','FontSize',10);
-        % Result box
-        resultBox = uicontrol(controlPanel,'Style','text','String','Result: ',...
-            'FontSize',12,'FontWeight','bold',...
-            'Position',[10 10 250 25],...
-            'BackgroundColor','white','ForegroundColor','black');
-        % Top trace subplot: raw signal
-        axRaw = subplot('Position', [0.35 0.55 0.6 0.35]);
-        title(axRaw, 'Raw Signal');
-        % Bottom trace subplot: scalogram
-        axScalogram = subplot('Position', [0.35 0.1 0.6 0.35]);
-
-        %% Callback: Load Signal
-        function loadSignal(~,~)
-            gtStr = get(gtInput, 'String');
-            chnNumber = str2double(gtStr);
-            if isnan(chnNumber) || numel(chnNumber)> length(app.channelName)
-                errordlg('Wrong channel number!');
-                return;
-            end
-            data = app.data;
-            signalData = data(chnNumber,:);
-            ChnName = app.channelName(chnNumber,:);
-            t = (0:length(signalData)-1)/app.fs;          % Time vector
-            % Plot raw signal
-            axes(axRaw);
-            plot(t,signalData, 'k');
-            title(['Raw Signal', string(ChnName)]);
-            xlabel('Time (s)'); ylabel('Amplitude (mV)');
-            % Scalogram
-            fb = cwtfilterbank('SignalLength', length(signalData),'SamplingFrequency',app.fs, 'VoicesPerOctave', 12);
-            [cfs, freq] = wt(fb,signalData);
-            axes(axScalogram); cla(axScalogram);
-            t = (0:length(signalData)-1)/app.fs;
-            surface(axScalogram, t, freq, abs(cfs))
-            set(axScalogram, 'YDir', 'normal');
-            set(axScalogram, 'YScale', 'log');
-            yticks = [10 50 100 250 500 1000 2000];
-            set(axScalogram, 'YTick', yticks);
-            axis(axScalogram, 'tight')
-            % axis(axScalogram, 'xy')
-            xlabel(axScalogram, 'Time (s)')
-            ylabel(axScalogram, 'Frequency (Hz)')
-            title(axScalogram, 'Scalogram (Wavelet Transform)')
-            colormap(axScalogram, jet)
-            shading flat
-            % Clean
-            set(resultBox, 'String','Result: ','BackgroundColor','white','ForegroundColor','black');
-        end
-        signalData = [];
-        %% Callback: ML ensemble prediction
-        function runML(~,~)
-            if isempty(signalData)
-                errordlg('Load a signal first!');
-                return;
-            end
-            ml = load('\\neurodata\common stuff\OSEL\Open Signal Explorer and Labeler OSEL 3_8_Nedime\trainedModel_Ensemble.mat'); % ML ensemble pre-train model
-            yfit = hfoPrediction_ML(signalData, app.fs, ml.trainedModel_Ensemble); % 1: HFO, 0: notHFO
-            if yfit == 0
-                result = 'No HFO Detected';
-                bgColor = [1 0.6 0.6]; % light Red
-                fgColor = [0 0.5 0];
             else
-                result = 'HFO Detected!';
-                bgColor = [0.6 1 0.6]; % light Green
-                fgColor = [0.7 0 0];
+                warndlg('Wavelet Toolbox is NOT installed. Please Install Wavelet Toolbox using MATLAB Add-Ons', 'Warning');
+
             end
-            set(resultBox, 'String',['Result: ' result],...
-                'BackgroundColor',bgColor, 'ForegroundColor',fgColor);
-            % test the decision on the raw signal
-            axes(axRaw);
-            hold on;
-            yl = ylim;
-            text(10, yl(2)*0.9, result, 'FontSize',14,'FontWeight','bold',...
-                'Color',fgColor,'BackgroundColor',bgColor,'EdgeColor','k','Margin',3);
-            hold off;
-            % Functions for machine learning
-            function yfit = hfoPrediction_ML(signalData, fs, trainedModel)
-                filtered_signal = func_designFilt(signalData, 4, 0.1, 1000, fs, 'BPIIR');
-                % Extract Features
-                [KF, SkF, SeF , EeF , EF ] = Statistical_features_V2(filtered_signal,1);
-                DWT_F = extractDWT_V2(filtered_signal,fs,1);
-                AROrder = 4;   %The best order is 4
-                AR_F = feature_AR_V2(filtered_signal,AROrder,1);
-                [PSD_F , ~, DeltaPow , ThetaPow , Ratio_DeltaTheta , ...
-                    MuPow , BetaPow , Ratio_MuBeta , GammaPow , FastRpPow , ...
-                    Ratio_GRFR ] = feature_PSD_V2(filtered_signal,fs);
-                featuresTest = [PSD_F  DeltaPow  ThetaPow  Ratio_DeltaTheta ,...
-                    MuPow  BetaPow  Ratio_MuBeta  GammaPow  FastRpPow  Ratio_GRFR ,...
-                    AR_F  DWT_F  KF  SkF  SeF  EeF  EF ]; % Feature vector
-                % Predict result if hfo:1 nothfo:0
-                [yfit ,~] = trainedModel.predictFcn(featuresTest);
+        end
+
+        % Button pushed function: RunHFODetector
+        function RunHFODetector(app, event)
+            % GUI window
+            fig = figure('Name','HFO Detector','Position',[300 100 1000 700]);
+            % Buttons and the panel for ground truth
+            controlPanel = uipanel('Title','Controls','FontSize',12,...
+                'Position',[.02 .68 .28 .30]);
+            % Load button
+            uicontrol(controlPanel,'Style','pushbutton','String','Load Signal',...
+                'FontSize',10,...
+                'Position',[10 95 120 30],'Callback',@loadSignal);
+            % ML button
+            uicontrol(controlPanel,'Style','pushbutton','String','Run Ensemble',...
+                'FontSize',10,...
+                'Position',[10 50 120 30],'Callback',@runML);
+            % Channel
+            uicontrol(controlPanel,'Style','text','String','Channel Num:',...
+                'Position',[10 130 120 30],'HorizontalAlignment','left','FontSize',10);
+            % Ground truth edit box
+            gtInput = uicontrol(controlPanel,'Style','edit','String','1',...
+                'Position',[140 130 50 30],'BackgroundColor','white','FontSize',10);
+            % Result box
+            resultBox = uicontrol(controlPanel,'Style','text','String','Result: ',...
+                'FontSize',12,'FontWeight','bold',...
+                'Position',[10 10 250 25],...
+                'BackgroundColor','white','ForegroundColor','black');
+            % Top trace subplot: raw signal
+            axRaw = subplot('Position', [0.35 0.55 0.6 0.35]);
+            title(axRaw, 'Raw Signal');
+            % Bottom trace subplot: scalogram
+            axScalogram = subplot('Position', [0.35 0.1 0.6 0.35]);
+
+            %% Callback: Load Signal
+            function loadSignal(~,~)
+                gtStr = get(gtInput, 'String');
+                chnNumber = str2double(gtStr);
+                if isnan(chnNumber) || numel(chnNumber)> length(app.channelName)
+                    errordlg('Wrong channel number!');
+                    return;
+                end
+                data = app.data;
+                signalData = data(chnNumber,:);
+                ChnName = app.channelName(chnNumber,:);
+                t = (0:length(signalData)-1)/app.fs;          % Time vector
+                % Plot raw signal
+                axes(axRaw);
+                plot(t,signalData, 'k');
+                title(['Raw Signal', string(ChnName)]);
+                xlabel('Time (s)'); ylabel('Amplitude (mV)');
+                % Scalogram
+                fb = cwtfilterbank('SignalLength', length(signalData),'SamplingFrequency',app.fs, 'VoicesPerOctave', 12);
+                [cfs, freq] = wt(fb,signalData);
+                axes(axScalogram); cla(axScalogram);
+                t = (0:length(signalData)-1)/app.fs;
+                surface(axScalogram, t, freq, abs(cfs))
+                set(axScalogram, 'YDir', 'normal');
+                set(axScalogram, 'YScale', 'log');
+                yticks = [10 50 100 250 500 1000 2000];
+                set(axScalogram, 'YTick', yticks);
+                axis(axScalogram, 'tight')
+                % axis(axScalogram, 'xy')
+                xlabel(axScalogram, 'Time (s)')
+                ylabel(axScalogram, 'Frequency (Hz)')
+                title(axScalogram, 'Scalogram (Wavelet Transform)')
+                colormap(axScalogram, jet)
+                shading flat
+                % Clean
+                set(resultBox, 'String','Result: ','BackgroundColor','white','ForegroundColor','black');
             end
-            % Filter Function
-            function filteredSignal = func_designFilt(signalData,n,hpf1, hpf2,fs,filterType)
-                switch filterType
-                    case  'BPIIR'
-                        FiltFR = designfilt('bandpassiir', ...
-                            'FilterOrder', n, ...
-                            'HalfPowerFrequency1', hpf1, ...
-                            'HalfPowerFrequency2', hpf2, ...
-                            'SampleRate', fs);
-                    case 'HPIRR'
-                        FiltFR = designfilt('highpassiir', ...
-                            'FilterOrder', n, ...
-                            'HalfPowerFrequency', hpf1, ...
-                            'SampleRate', fs);
-                    case 'BPFIR'
-                        FiltFR = designfilt("bandpassfir", ...
-                            FilterOrder=n, CutoffFrequency1=hpf1, ...
-                            CutoffFrequency2=hpf2, SampleRate=fs);
-                    case 'HPFIR'
-                        FiltFR = designfilt('highpassfir', ...       % Response type
-                            'StopbandFrequency',hpf1-150, ...     % Frequency constraints
-                            'PassbandFrequency',hpf1, ...
-                            'StopbandAttenuation',55, ...    % Magnitude constraints
-                            'PassbandRipple',4, ...
-                            'DesignMethod','kaiserwin', ...  % Design method
-                            'ScalePassband',false, ...       % Design method options
-                            'SampleRate',fs);              % Sample rate
+            signalData = [];
+            %% Callback: ML ensemble prediction
+            function runML(~,~)
+                if isempty(signalData)
+                    errordlg('Load a signal first!');
+                    return;
                 end
-                filteredSignal = filtfilt(FiltFR,signalData); % fd = 1 x samp
-            end
-            % Function for Statistical Features
-            function [o1,o2,o3,o4,o5] = Statistical_features_V2(filtered_signal,chn_num)
-                % Extracts statistical features such as : kurtosis,
-                % skewness, Shannon entropy, energy entropy, energy
-                % chn_num: the number of channel
-                [row,col] = size(filtered_signal);
-                if col > row
-                    filtered_signal =filtered_signal';
+                basePath = '\\neurodata\common stuff\OSEL\';
+                oselDir = dir(fullfile(basePath, 'Open Signal Explorer and Labeler OSEL*'));
+                if ~isempty(oselDir)
+                    modelPath = fullfile(basePath, oselDir(end).name,'\resource\', 'trainedModel_Ensemble.mat');
+                    ml = load(modelPath); % ML ensemble pre-train model
+                else
+                    error('No OSEL folder found in "%s".', basePath);
                 end
-                KF = [];
-                SkF = [];
-                SeF = [];
-                EeF = [];
-                EF = [];
-                kurtosisfeatures=[];
-                skewnessfeatures=[];
-                shanonentropyfeatures=[];
-                energyentropyfeatures=[];
-                energyfeatures=[];
-                cnt =0;
-                for m=1:chn_num
-                    kurtosisfeatures(1,m) = kurtosis( filtered_signal(:,m));
-                    skewnessfeatures (1,m)= skewness( filtered_signal(:,m));
-                    shanonentropyfeatures(1,m) = wentropy(filtered_signal(:,m),'shannon'); %Compute the Shannon entropy of s.
-                    energyentropyfeatures (1,m)= wentropy(filtered_signal(:,m),'log energy'); %Compute the “log energy” entropy of s.
-                    energyfeatures (1,m)= sum(filtered_signal(:,m).*filtered_signal(:,m));
+                yfit = hfoPrediction_ML(signalData, app.fs, ml.trainedModel_Ensemble); % 1: HFO, 0: notHFO
+                if yfit == 0
+                    result = 'No HFO Detected';
+                    bgColor = [1 0.6 0.6]; % light Red
+                    fgColor = [0 0.5 0];
+                else
+                    result = 'HFO Detected!';
+                    bgColor = [0.6 1 0.6]; % light Green
+                    fgColor = [0.7 0 0];
                 end
-                KF  = [KF ;kurtosisfeatures];
-                SkF = [SkF; skewnessfeatures];
-                SeF = [SeF; shanonentropyfeatures];
-                EeF = [EeF; energyentropyfeatures];
-                EF  = [EF; energyfeatures];
-                kurtosisfeatures=[];
-                skewnessfeatures=[];
-                shanonentropyfeatures=[];
-                energyentropyfeatures=[];
-                energyfeatures=[];
-                cnt =0;
-                o1 = KF;
-                o2 = SkF;
-                o3 = SeF;
-                o4 = EeF;
-                o5 = EF;
-            end
-            % Frequency Domain Features
-            function x=extractDWT_V2(filtered_signal,fs,chn_num)
-                % discrete wavelet transform
-                %  data  = input signal
-                [row, col] = size(filtered_signal);
-                if row< col
-                    filtered_signal = filtered_signal';
+                set(resultBox, 'String',['Result: ' result],...
+                    'BackgroundColor',bgColor, 'ForegroundColor',fgColor);
+                % test the decision on the raw signal
+                axes(axRaw);
+                hold on;
+                yl = ylim;
+                text(10, yl(2)*0.9, result, 'FontSize',14,'FontWeight','bold',...
+                    'Color',fgColor,'BackgroundColor',bgColor,'EdgeColor','k','Margin',3);
+                hold off;
+                % Functions for machine learning
+                function yfit = hfoPrediction_ML(signalData, fs, trainedModel)
+                    filtered_signal = func_designFilt(signalData, 4, 0.1, 1000, fs, 'BPIIR');
+                    % Extract Features
+                    [KF, SkF, SeF , EeF , EF ] = Statistical_features_V2(filtered_signal,1);
+                    DWT_F = extractDWT_V2(filtered_signal,fs,1);
+                    AROrder = 4;   %The best order is 4
+                    AR_F = feature_AR_V2(filtered_signal,AROrder,1);
+                    [PSD_F , ~, DeltaPow , ThetaPow , Ratio_DeltaTheta , ...
+                        MuPow , BetaPow , Ratio_MuBeta , GammaPow , FastRpPow , ...
+                        Ratio_GRFR ] = feature_PSD_V2(filtered_signal,fs);
+                    featuresTest = [PSD_F  DeltaPow  ThetaPow  Ratio_DeltaTheta ,...
+                        MuPow  BetaPow  Ratio_MuBeta  GammaPow  FastRpPow  Ratio_GRFR ,...
+                        AR_F  DWT_F  KF  SkF  SeF  EeF  EF ]; % Feature vector
+                    % Predict result if hfo:1 nothfo:0
+                    if sum(contains(fieldnames(trainedModel), 'predictFcn'))>0
+                        [yfit ,~] = trainedModel.predictFcn(featuresTest);
+                    else
+                        [yfit ,~] = predict(trainedModel,featuresTest);
+                    end
                 end
-                x=[]; % output matrix
-                X=[];
-                cn=0;
-                for m=1:chn_num
-                    ChSig=filtered_signal(:,m);
-                    waveletFunction = 'db4'; %Daubechies
-                    waveletLevel = wmaxlev(fs,waveletFunction);  % to determine decomposition level
-                    [wCoe,L] = wavedec(ChSig,waveletLevel,waveletFunction);
-                    ChD5 = detcoef(wCoe,L,waveletLevel);   % Mu detail coefficients
-                    % Mean of the absolute values
-                    X(1,m)=sum(ChD5.^2)/numel(ChD5);
+                % Filter Function
+                function filteredSignal = func_designFilt(signalData,n,hpf1, hpf2,fs,filterType)
+                    switch filterType
+                        case  'BPIIR'
+                            FiltFR = designfilt('bandpassiir', ...
+                                'FilterOrder', n, ...
+                                'HalfPowerFrequency1', hpf1, ...
+                                'HalfPowerFrequency2', hpf2, ...
+                                'SampleRate', fs);
+                        case 'HPIRR'
+                            FiltFR = designfilt('highpassiir', ...
+                                'FilterOrder', n, ...
+                                'HalfPowerFrequency', hpf1, ...
+                                'SampleRate', fs);
+                        case 'BPFIR'
+                            FiltFR = designfilt("bandpassfir", ...
+                                FilterOrder=n, CutoffFrequency1=hpf1, ...
+                                CutoffFrequency2=hpf2, SampleRate=fs);
+                        case 'HPFIR'
+                            FiltFR = designfilt('highpassfir', ...       % Response type
+                                'StopbandFrequency',hpf1-150, ...     % Frequency constraints
+                                'PassbandFrequency',hpf1, ...
+                                'StopbandAttenuation',55, ...    % Magnitude constraints
+                                'PassbandRipple',4, ...
+                                'DesignMethod','kaiserwin', ...  % Design method
+                                'ScalePassband',false, ...       % Design method options
+                                'SampleRate',fs);              % Sample rate
+                    end
+                    filteredSignal = filtfilt(FiltFR,signalData); % fd = 1 x samp
                 end
-                x  = [x ;X];
-                cn = 0;
-                X=[];
-            end
-            function [o1,o2,o3, o4,o5,o6,o7,o8,o9,o10,o11] = feature_PSD_V2(filtered_signal,fs)
-                % Extracts frequency domain features such as: delta power, theta power,
-                % alpha power, beta power, gamma, fast ripple power, and calculates their
-                % consecutive ratios
-                x=[];
-                X=[];
-                DeltaPow = [];
-                Delta_Power = [];
-                ThetaPow = [];
-                Theta_Power = [];
-                Ratio_DeltaTheta = [];
-                Ratio_DeltaTheta_Power = [];
-                MuPow=[];
-                BetaPow=[];
-                Mu_Power = [];
-                Beta_Power = [];
-                Ratio_MuBeta=[];
-                Ratio_MuBeta_Power = [];
-                GammaPow = [];
-                Gamma_Power = [];
-                FastRpPow = [];
-                FastRp_Power = [];
-                Ratio_GRFR = [];
-                Ratio_GRFR_Power = [];
-                ChSig = filtered_signal;
-                [row,col] = size(ChSig);
-                if row < col
-                    ChSig = ChSig';
+                % Function for Statistical Features
+                function [o1,o2,o3,o4,o5] = Statistical_features_V2(filtered_signal,chn_num)
+                    % Extracts statistical features such as : kurtosis,
+                    % skewness, Shannon entropy, energy entropy, energy
+                    % chn_num: the number of channel
+                    [row,col] = size(filtered_signal);
+                    if col > row
+                        filtered_signal =filtered_signal';
+                    end
+                    KF = [];
+                    SkF = [];
+                    SeF = [];
+                    EeF = [];
+                    EF = [];
+                    kurtosisfeatures=[];
+                    skewnessfeatures=[];
+                    shanonentropyfeatures=[];
+                    energyentropyfeatures=[];
+                    energyfeatures=[];
+                    cnt =0;
+                    for m=1:chn_num
+                        kurtosisfeatures(1,m) = kurtosis( filtered_signal(:,m));
+                        skewnessfeatures (1,m)= skewness( filtered_signal(:,m));
+                        shanonentropyfeatures(1,m) = wentropy(filtered_signal(:,m),'shannon'); %Compute the Shannon entropy of s.
+                        energyentropyfeatures (1,m)= wentropy(filtered_signal(:,m),'log energy'); %Compute the “log energy” entropy of s.
+                        energyfeatures (1,m)= sum(filtered_signal(:,m).*filtered_signal(:,m));
+                    end
+                    KF  = [KF ;kurtosisfeatures];
+                    SkF = [SkF; skewnessfeatures];
+                    SeF = [SeF; shanonentropyfeatures];
+                    EeF = [EeF; energyentropyfeatures];
+                    EF  = [EF; energyfeatures];
+                    kurtosisfeatures=[];
+                    skewnessfeatures=[];
+                    shanonentropyfeatures=[];
+                    energyentropyfeatures=[];
+                    energyfeatures=[];
+                    cnt =0;
+                    o1 = KF;
+                    o2 = SkF;
+                    o3 = SeF;
+                    o4 = EeF;
+                    o5 = EF;
                 end
-                winLength = round(length(ChSig)*2/3);
-                nOverlap = round(winLength/2);
-                nfft = 2^nextpow2(winLength);
-                [pxx, ff] = pwelch(ChSig, hamming(winLength), nOverlap, nfft, fs); %[pxx,f] = pwelch(x,window,noverlap,f,fs) returns the two-sided Welch PSD estimates at the frequencies specified in the vector, f. The vector f must contain at least two elements, because otherwise the function interprets it as nfft. The frequencies in f are in cycles per unit time. The sample rate, fs, is the number of samples per unit time. If the unit of time is seconds, then f is in cycles/sec (Hz).
-                %window: the default Hamming window is used to obtain eight segments of x with noverlap overlapping samples.
-                %noverlap: a value is used to obtain 50% overlap between segments.
-                DeltaPow(1,:)     = sum(pxx(ff >= 0.5 & ff < 4)); % Delta band power
-                ThetaPow(1,:)     = sum(pxx(ff >= 4 & ff < 8)); % Theta band power
-                Ratio_DeltaTheta(1,:) = DeltaPow(1,:)./ThetaPow(1,:);   % relative band power
-                MuPow(1,:)        = sum(pxx(ff >= 8 & ff <= 12)); % 8-12.5Hz
-                BetaPow(1,:)      = sum(pxx(ff >= 13 & ff <= 30)); % 13-30Hz
-                Ratio_MuBeta(1,:) = MuPow(1,:)./BetaPow(1,:);   % relative band power
-                GammaPow(1,:)     = sum(pxx(ff >= 30 & ff < 250)); % Gamma - High gamma band power
-                FastRpPow(1,:)    = sum(pxx(ff >= 250 & ff < 800)); % Fast ripple band power
-                Ratio_GRFR(1,:) = GammaPow(1,:)./FastRpPow(1,:);   % relative band power
-                X(1,:)   = sum(pxx(ff >= 0.5 & ff < 1000)); % Whole band power
-                x                  = [x ;X];
-                Delta_Power           = [Delta_Power; DeltaPow];
-                Theta_Power           = [Theta_Power; ThetaPow];
-                Ratio_DeltaTheta_Power= [Ratio_DeltaTheta_Power; Ratio_DeltaTheta];
-                Mu_Power           = [Mu_Power; MuPow];
-                Beta_Power         = [Beta_Power; BetaPow];
-                Ratio_MuBeta_Power = [Ratio_MuBeta_Power; Ratio_MuBeta];
-                Gamma_Power           = [Gamma_Power; GammaPow];
-                FastRp_Power           = [FastRp_Power; FastRpPow];
-                Ratio_GRFR_Power= [Ratio_GRFR_Power; Ratio_GRFR];
-                o1 = x;
-                o2 = ff;
-                o3 = Delta_Power;
-                o4 = Theta_Power;
-                o5 = Ratio_DeltaTheta_Power;
-                o6 = Mu_Power;
-                o7 = Beta_Power;
-                o8 = Ratio_MuBeta_Power;
-                o9 = Gamma_Power;
-                o10= FastRp_Power;
-                o11= Ratio_GRFR_Power;
-            end
-            % Time Domain Features
-            function x=feature_AR_V2(filtered_signal,AROrder,chn_num)
-                [row, col] = size(filtered_signal);
-                if row < col
-                    filtered_signal = filtered_signal';
+                % Frequency Domain Features
+                function x=extractDWT_V2(filtered_signal,fs,chn_num)
+                    % discrete wavelet transform
+                    %  data  = input signal
+                    [row, col] = size(filtered_signal);
+                    if row< col
+                        filtered_signal = filtered_signal';
+                    end
+                    x=[]; % output matrix
+                    X=[];
+                    cn=0;
+                    for m=1:chn_num
+                        ChSig=filtered_signal(:,m);
+                        waveletFunction = 'db4'; %Daubechies
+                        waveletLevel = wmaxlev(fs,waveletFunction);  % to determine decomposition level
+                        [wCoe,L] = wavedec(ChSig,waveletLevel,waveletFunction);
+                        ChD5 = detcoef(wCoe,L,waveletLevel);   % Mu detail coefficients
+                        % Mean of the absolute values
+                        X(1,m)=sum(ChD5.^2)/numel(ChD5);
+                    end
+                    x  = [x ;X];
+                    cn = 0;
+                    X=[];
                 end
-                x=[];
-                X=[];
-                cn=0;
-                [chn,samp] = size(filtered_signal);
-                if chn < samp
-                    filtered_signal = filtered_signal';
+                function [o1,o2,o3, o4,o5,o6,o7,o8,o9,o10,o11] = feature_PSD_V2(filtered_signal,fs)
+                    % Extracts frequency domain features such as: delta power, theta power,
+                    % alpha power, beta power, gamma, fast ripple power, and calculates their
+                    % consecutive ratios
+                    x=[];
+                    X=[];
+                    DeltaPow = [];
+                    Delta_Power = [];
+                    ThetaPow = [];
+                    Theta_Power = [];
+                    Ratio_DeltaTheta = [];
+                    Ratio_DeltaTheta_Power = [];
+                    MuPow=[];
+                    BetaPow=[];
+                    Mu_Power = [];
+                    Beta_Power = [];
+                    Ratio_MuBeta=[];
+                    Ratio_MuBeta_Power = [];
+                    GammaPow = [];
+                    Gamma_Power = [];
+                    FastRpPow = [];
+                    FastRp_Power = [];
+                    Ratio_GRFR = [];
+                    Ratio_GRFR_Power = [];
+                    ChSig = filtered_signal;
+                    [row,col] = size(ChSig);
+                    if row < col
+                        ChSig = ChSig';
+                    end
+                    winLength = round(length(ChSig)*2/3);
+                    nOverlap = round(winLength/2);
+                    nfft = 2^nextpow2(winLength);
+                    [pxx, ff] = pwelch(ChSig, hamming(winLength), nOverlap, nfft, fs); %[pxx,f] = pwelch(x,window,noverlap,f,fs) returns the two-sided Welch PSD estimates at the frequencies specified in the vector, f. The vector f must contain at least two elements, because otherwise the function interprets it as nfft. The frequencies in f are in cycles per unit time. The sample rate, fs, is the number of samples per unit time. If the unit of time is seconds, then f is in cycles/sec (Hz).
+                    %window: the default Hamming window is used to obtain eight segments of x with noverlap overlapping samples.
+                    %noverlap: a value is used to obtain 50% overlap between segments.
+                    DeltaPow(1,:)     = sum(pxx(ff >= 0.5 & ff < 4)); % Delta band power
+                    ThetaPow(1,:)     = sum(pxx(ff >= 4 & ff < 8)); % Theta band power
+                    Ratio_DeltaTheta(1,:) = DeltaPow(1,:)./ThetaPow(1,:);   % relative band power
+                    MuPow(1,:)        = sum(pxx(ff >= 8 & ff <= 12)); % 8-12.5Hz
+                    BetaPow(1,:)      = sum(pxx(ff >= 13 & ff <= 30)); % 13-30Hz
+                    Ratio_MuBeta(1,:) = MuPow(1,:)./BetaPow(1,:);   % relative band power
+                    GammaPow(1,:)     = sum(pxx(ff >= 30 & ff < 250)); % Gamma - High gamma band power
+                    FastRpPow(1,:)    = sum(pxx(ff >= 250 & ff < 800)); % Fast ripple band power
+                    Ratio_GRFR(1,:) = GammaPow(1,:)./FastRpPow(1,:);   % relative band power
+                    X(1,:)   = sum(pxx(ff >= 0.5 & ff < 1000)); % Whole band power
+                    x                  = [x ;X];
+                    Delta_Power           = [Delta_Power; DeltaPow];
+                    Theta_Power           = [Theta_Power; ThetaPow];
+                    Ratio_DeltaTheta_Power= [Ratio_DeltaTheta_Power; Ratio_DeltaTheta];
+                    Mu_Power           = [Mu_Power; MuPow];
+                    Beta_Power         = [Beta_Power; BetaPow];
+                    Ratio_MuBeta_Power = [Ratio_MuBeta_Power; Ratio_MuBeta];
+                    Gamma_Power           = [Gamma_Power; GammaPow];
+                    FastRp_Power           = [FastRp_Power; FastRpPow];
+                    Ratio_GRFR_Power= [Ratio_GRFR_Power; Ratio_GRFR];
+                    o1 = x;
+                    o2 = ff;
+                    o3 = Delta_Power;
+                    o4 = Theta_Power;
+                    o5 = Ratio_DeltaTheta_Power;
+                    o6 = Mu_Power;
+                    o7 = Beta_Power;
+                    o8 = Ratio_MuBeta_Power;
+                    o9 = Gamma_Power;
+                    o10= FastRp_Power;
+                    o11= Ratio_GRFR_Power;
                 end
-                for m=1:chn_num
-                    ChSig=filtered_signal(:,m);
-                    c= arburg(ChSig, AROrder); %Autoregressive all-pole model parameters — Burg’s method
-                    % I found by using AR Order Selection with Partial Autocorrelation Sequence
-                    % Mean of the absolute values
-                    X(1,m)=sum(c.^2)/numel(c);
+                % Time Domain Features
+                function x=feature_AR_V2(filtered_signal,AROrder,chn_num)
+                    [row, col] = size(filtered_signal);
+                    if row < col
+                        filtered_signal = filtered_signal';
+                    end
+                    x=[];
+                    X=[];
+                    cn=0;
+                    [chn,samp] = size(filtered_signal);
+                    if chn < samp
+                        filtered_signal = filtered_signal';
+                    end
+                    for m=1:chn_num
+                        ChSig=filtered_signal(:,m);
+                        c= arburg(ChSig, AROrder); %Autoregressive all-pole model parameters — Burg’s method
+                        % I found by using AR Order Selection with Partial Autocorrelation Sequence
+                        % Mean of the absolute values
+                        X(1,m)=sum(c.^2)/numel(c);
+                    end
+                    x  = [x ;X];
+                    cn= 0;
+                    X=[];
                 end
-                x  = [x ;X];
-                cn= 0;
-                X=[];
             end
         end
     end
-end
 
-% Component initialization
-methods (Access = private)
+    % Component initialization
+    methods (Access = private)
 
-    % Create UIFigure and components
-    function createComponents(app)
-        figW = 470;
-        figH = 480;
-        % Get monitor positions
-        src = get(0,'MonitorPositions');
-        primaryMonitor = src(1,:);  % [x, y, width, height]
-        % Compute centered position
-        xPos = primaryMonitor(1);
-        yPos = primaryMonitor(2);
-        left   = xPos + (primaryMonitor(3) - figW)/2;
-        bottom = yPos + (primaryMonitor(4) - figH)/2;
-
-        % Create NeuroSignalStudioUIFigure and hide until all components are created
-        app.NeuroSignalStudioUIFigure = uifigure('Visible', 'off');
-        app.NeuroSignalStudioUIFigure.Position = [left bottom figW figH]; %  [left bottom width height]
-        app.NeuroSignalStudioUIFigure.Name = 'NeuroSignal Studio';
-
-        % Create UIAxes
-        app.UIAxes = uiaxes(app.NeuroSignalStudioUIFigure);
-        title(app.UIAxes, 'Multichannel Raw Signals')
-        xlabel(app.UIAxes, 'Time (s)')
-        ylabel(app.UIAxes, 'Channels')
-        zlabel(app.UIAxes, 'Z')
-        app.UIAxes.YTick = [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15];
-        app.UIAxes.YTickLabel = {'1'; '2'; '3'; '4'; '5'; '6'; '7'; '8'; '9'; '10'; '11'; '12'; '13'; '14'; '15'; '16'};
-        app.UIAxes.YMinorTick = 'on';
-        app.UIAxes.Tag = 'EEG_axis';
-        app.UIAxes.Visible = 'off';
-        app.UIAxes.Position = [10 35 440 340];
-
-        % Create ImportNewSignalButton
-        app.ImportNewSignalButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
-        app.ImportNewSignalButton.ButtonPushedFcn = createCallbackFcn(app, @ImportNewSignalButtonPushed, true);
-        app.ImportNewSignalButton.Tag = 'ImportNewSignal_button';
-        app.ImportNewSignalButton.Position = [6 449 76 23];
-        app.ImportNewSignalButton.Text = 'Load Sig.';
-
-        % Create FindTroughsButton
-        app.FindTroughsButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
-        app.FindTroughsButton.ButtonPushedFcn = createCallbackFcn(app, @FindTroughsButtonPushed, true);
-        app.FindTroughsButton.Tag = 'findPeaks_button';
-        app.FindTroughsButton.Position = [253 449 76 23];
-        app.FindTroughsButton.Text = 'Find Troughs';
-
-        % Create AverageofSpikesButton
-        app.AverageofSpikesButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
-        app.AverageofSpikesButton.ButtonPushedFcn = createCallbackFcn(app, @AverageofSpikesButtonPushed, true);
-        app.AverageofSpikesButton.BackgroundColor = [0.8 0.8 0.8];
-        app.AverageofSpikesButton.Position = [253 423 76 23];
-        app.AverageofSpikesButton.Text = 'Avg.Spikes';
-
-        % Create CSDButton
-        app.CSDButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
-        app.CSDButton.ButtonPushedFcn = createCallbackFcn(app, @CSDButtonPushed, true);
-        app.CSDButton.Tag = 'csd_button';
-        app.CSDButton.Position = [335 449 76 23];
-        app.CSDButton.Text = 'CSD';
-
-        % Create HPFilterButton
-        app.HPFilterButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
-        app.HPFilterButton.ButtonPushedFcn = createCallbackFcn(app, @HPFilterButtonPushed, true);
-        app.HPFilterButton.Tag = 'highPassFilter_button';
-        app.HPFilterButton.Position = [87 449 76 23];
-        app.HPFilterButton.Text = 'HP Filter';
-
-        % Create BandPassFilterButton
-        app.BandPassFilterButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
-        app.BandPassFilterButton.ButtonPushedFcn = createCallbackFcn(app, @BandPassFilterButtonPushed, true);
-        app.BandPassFilterButton.Tag = 'bandPassFilter_button';
-        app.BandPassFilterButton.Position = [87 423 76 23];
-        app.BandPassFilterButton.Text = 'BP Filter';
-
-        % Create CombFilterButton
-        app.CombFilterButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
-        app.CombFilterButton.ButtonPushedFcn = createCallbackFcn(app, @CombFilterButtonPushed, true);
-        app.CombFilterButton.Tag = 'combFilter_button';
-        app.CombFilterButton.Position =  [87 396 76 23];
-        app.CombFilterButton.Text = 'Comb Filter';
-
-        % Create WellcometoNeuroSignalStudioLabel
-        app.WellcometoNeuroSignalStudioLabel = uilabel(app.NeuroSignalStudioUIFigure);
-        app.WellcometoNeuroSignalStudioLabel.FontName = 'Arial';
-        app.WellcometoNeuroSignalStudioLabel.FontWeight = 'bold';
-        app.WellcometoNeuroSignalStudioLabel.FontColor = [0 0.4471 0.7412];
-        app.WellcometoNeuroSignalStudioLabel.Position =  [69 138 365 207];
-        app.WellcometoNeuroSignalStudioLabel.Text = {'Welcome to the NeuroSignal Studio App!'; ''; 'This tool is designed to assist you with EEG signal processing.';''; 'Simply load your EEG data,';'configure your analysis parameters,';'and let the app do the rest!'; ''; 'If you need help, please contact with Nedime Karakullukcu.'; ''; 'Happy analyzing!'};
-
-        % Create Image
-        app.Image = uiimage(app.NeuroSignalStudioUIFigure);
-        app.Image.Tag = 'neuroSignalStudio_Icon_1';
-        app.Image.Position = [186 20 120 138];
-        app.Image.ImageSource = 'iconNeuroSignalStudio.png';
-
-        % Create Image_2
-        app.Image_2 = uiimage(app.NeuroSignalStudioUIFigure);
-        app.Image_2.Tag = 'neuroSignalStudio_Icon_2';
-        app.Image_2.Visible = 'off';
-        app.Image_2.Position = [1 1 57 48];
-        app.Image_2.ImageSource = 'iconNeuroSignalStudio.png';
-
-        % Create ImportfromOSELButton
-        app.ImportfromOSELButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
-        app.ImportfromOSELButton.ButtonPushedFcn = createCallbackFcn(app, @ImportfromOSELButtonPushed, true);
-        app.ImportfromOSELButton.Tag = 'ImportSignalOSEL_button';
-        app.ImportfromOSELButton.Position = [6 423 76 23];
-        app.ImportfromOSELButton.Text = 'Load all Sig.';
-
-        % Create ImportDisplayedButton
-        app.ImportDisplayedButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
-        app.ImportDisplayedButton.ButtonPushedFcn = createCallbackFcn(app, @ImportDisplayedButtonPushed, true);
-        app.ImportDisplayedButton.Tag = 'ImportDisplayedSignal_button';
-        app.ImportDisplayedButton.Position = [6 396 76 23];
-        app.ImportDisplayedButton.Text = 'Load Disp.';
-
-        % Create BipolarMontageButton
-        app.BipolarMontageButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
-        app.BipolarMontageButton.ButtonPushedFcn = createCallbackFcn(app, @BipolarMontageButtonPushed, true);
-        app.BipolarMontageButton.Position = [169 449 76 23];
-        app.BipolarMontageButton.Text = 'Bip.Montage';
-
-        % Create ContourPlotCSDButton
-        app.ContourPlotCSDButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
-        app.ContourPlotCSDButton.ButtonPushedFcn = createCallbackFcn(app, @ContourPlotCSDButtonPushed, true);
-        app.ContourPlotCSDButton.Tag = 'contour_button';
-        app.ContourPlotCSDButton.BackgroundColor = [0.8 0.8 0.8];
-        app.ContourPlotCSDButton.Position = [335 423 76 23];
-        app.ContourPlotCSDButton.Text = 'Cont.Plt.CSD';
-
-        % Create TimeFrequencyButton
-        app.TimeFrequencyButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
-        app.TimeFrequencyButton.ButtonPushedFcn = createCallbackFcn(app, @TimeFrequencyButtonPushed, true);
-        app.TimeFrequencyButton.Tag = 'tf_button';
-        app.TimeFrequencyButton.Position = [169 423 76 23];
-        app.TimeFrequencyButton.Text = 'Scalogram';
-
-        % Create RunHFODetector
-        app.TimeFrequencyButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
-        app.TimeFrequencyButton.ButtonPushedFcn = createCallbackFcn(app, @RunHFODetector, true);
-        app.TimeFrequencyButton.Tag = 'tf_button';
-        app.TimeFrequencyButton.Position = [169 396 76 23];
-        app.TimeFrequencyButton.Text = 'Run Detector';
-
-        % Show the figure after all components are created
-        app.NeuroSignalStudioUIFigure.Visible = 'on';
-    end
-end
-
-% App creation and deletion
-methods (Access = public)
-
-    % Construct app
-    function app = neuroSignalStudio(varargin)
         % Create UIFigure and components
-        createComponents(app)
-        % Register the app with App Designer
-        registerApp(app, app.NeuroSignalStudioUIFigure)
-        % Execute the startup function
-        runStartupFcn(app, @(app)startupFcn(app, varargin{:}))
-        if nargout == 0
-            clear app
+        function createComponents(app)
+            figW = 470;
+            figH = 480;
+            % Get monitor positions
+            src = get(0,'MonitorPositions');
+            primaryMonitor = src(1,:);  % [x, y, width, height]
+            % Compute centered position
+            xPos = primaryMonitor(1);
+            yPos = primaryMonitor(2);
+            left   = xPos + (primaryMonitor(3) - figW)/2;
+            bottom = yPos + (primaryMonitor(4) - figH)/2;
+
+            % Create NeuroSignalStudioUIFigure and hide until all components are created
+            app.NeuroSignalStudioUIFigure = uifigure('Visible', 'off');
+            app.NeuroSignalStudioUIFigure.Position = [left bottom figW figH]; %  [left bottom width height]
+            app.NeuroSignalStudioUIFigure.Name = 'NeuroSignal Studio';
+
+            % Create UIAxes
+            app.UIAxes = uiaxes(app.NeuroSignalStudioUIFigure);
+            title(app.UIAxes, 'Multichannel Raw Signals')
+            xlabel(app.UIAxes, 'Time (s)')
+            ylabel(app.UIAxes, 'Channels')
+            zlabel(app.UIAxes, 'Z')
+            app.UIAxes.YTick = [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15];
+            app.UIAxes.YTickLabel = {'1'; '2'; '3'; '4'; '5'; '6'; '7'; '8'; '9'; '10'; '11'; '12'; '13'; '14'; '15'; '16'};
+            app.UIAxes.YMinorTick = 'on';
+            app.UIAxes.Tag = 'EEG_axis';
+            app.UIAxes.Visible = 'off';
+            app.UIAxes.Position = [10 35 440 340];
+
+            % Create ImportNewSignalButton
+            app.ImportNewSignalButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
+            app.ImportNewSignalButton.ButtonPushedFcn = createCallbackFcn(app, @ImportNewSignalButtonPushed, true);
+            app.ImportNewSignalButton.Tag = 'ImportNewSignal_button';
+            app.ImportNewSignalButton.Position = [6 449 76 23];
+            app.ImportNewSignalButton.Text = 'Load Sig.';
+
+            % Create FindTroughsButton
+            app.FindTroughsButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
+            app.FindTroughsButton.ButtonPushedFcn = createCallbackFcn(app, @FindTroughsButtonPushed, true);
+            app.FindTroughsButton.Tag = 'findPeaks_button';
+            app.FindTroughsButton.Position = [253 449 76 23];
+            app.FindTroughsButton.Text = 'Find Troughs';
+
+            % Create AverageofSpikesButton
+            app.AverageofSpikesButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
+            app.AverageofSpikesButton.ButtonPushedFcn = createCallbackFcn(app, @AverageofSpikesButtonPushed, true);
+            app.AverageofSpikesButton.BackgroundColor = [0.8 0.8 0.8];
+            app.AverageofSpikesButton.Position = [253 423 76 23];
+            app.AverageofSpikesButton.Text = 'Avg.Spikes';
+
+            % Create CSDButton
+            app.CSDButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
+            app.CSDButton.ButtonPushedFcn = createCallbackFcn(app, @CSDButtonPushed, true);
+            app.CSDButton.Tag = 'csd_button';
+            app.CSDButton.Position = [335 449 76 23];
+            app.CSDButton.Text = 'CSD';
+
+            % Create HPFilterButton
+            app.HPFilterButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
+            app.HPFilterButton.ButtonPushedFcn = createCallbackFcn(app, @HPFilterButtonPushed, true);
+            app.HPFilterButton.Tag = 'highPassFilter_button';
+            app.HPFilterButton.Position = [87 449 76 23];
+            app.HPFilterButton.Text = 'HP Filter';
+
+            % Create BandPassFilterButton
+            app.BandPassFilterButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
+            app.BandPassFilterButton.ButtonPushedFcn = createCallbackFcn(app, @BandPassFilterButtonPushed, true);
+            app.BandPassFilterButton.Tag = 'bandPassFilter_button';
+            app.BandPassFilterButton.Position = [87 423 76 23];
+            app.BandPassFilterButton.Text = 'BP Filter';
+
+            % Create CombFilterButton
+            app.CombFilterButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
+            app.CombFilterButton.ButtonPushedFcn = createCallbackFcn(app, @CombFilterButtonPushed, true);
+            app.CombFilterButton.Tag = 'combFilter_button';
+            app.CombFilterButton.Position =  [87 396 76 23];
+            app.CombFilterButton.Text = 'Comb Filter';
+
+            % Create WellcometoNeuroSignalStudioLabel
+            app.WellcometoNeuroSignalStudioLabel = uilabel(app.NeuroSignalStudioUIFigure);
+            app.WellcometoNeuroSignalStudioLabel.FontName = 'Arial';
+            app.WellcometoNeuroSignalStudioLabel.FontWeight = 'bold';
+            app.WellcometoNeuroSignalStudioLabel.FontColor = [0 0.4471 0.7412];
+            app.WellcometoNeuroSignalStudioLabel.Position =  [69 138 365 207];
+            app.WellcometoNeuroSignalStudioLabel.Text = {'Welcome to the NeuroSignal Studio App!'; ''; 'This tool is designed to assist you with EEG signal processing.';''; 'Simply load your EEG data,';'configure your analysis parameters,';'and let the app do the rest!'; ''; 'If you need help, please contact with Nedime Karakullukcu.'; ''; 'Happy analyzing!'};
+
+            % Create Image
+            app.Image = uiimage(app.NeuroSignalStudioUIFigure);
+            app.Image.Tag = 'neuroSignalStudio_Icon_1';
+            app.Image.Position = [186 20 120 138];
+            app.Image.ImageSource = 'iconNeuroSignalStudio.png';
+
+            % Create Image_2
+            app.Image_2 = uiimage(app.NeuroSignalStudioUIFigure);
+            app.Image_2.Tag = 'neuroSignalStudio_Icon_2';
+            app.Image_2.Visible = 'off';
+            app.Image_2.Position = [1 1 57 48];
+            app.Image_2.ImageSource = 'iconNeuroSignalStudio.png';
+
+            % Create ImportfromOSELButton
+            app.ImportfromOSELButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
+            app.ImportfromOSELButton.ButtonPushedFcn = createCallbackFcn(app, @ImportfromOSELButtonPushed, true);
+            app.ImportfromOSELButton.Tag = 'ImportSignalOSEL_button';
+            app.ImportfromOSELButton.Position = [6 423 76 23];
+            app.ImportfromOSELButton.Text = 'Load all Sig.';
+
+            % Create ImportDisplayedButton
+            app.ImportDisplayedButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
+            app.ImportDisplayedButton.ButtonPushedFcn = createCallbackFcn(app, @ImportDisplayedButtonPushed, true);
+            app.ImportDisplayedButton.Tag = 'ImportDisplayedSignal_button';
+            app.ImportDisplayedButton.Position = [6 396 76 23];
+            app.ImportDisplayedButton.Text = 'Load Disp.';
+
+            % Create BipolarMontageButton
+            app.BipolarMontageButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
+            app.BipolarMontageButton.ButtonPushedFcn = createCallbackFcn(app, @BipolarMontageButtonPushed, true);
+            app.BipolarMontageButton.Position = [169 449 76 23];
+            app.BipolarMontageButton.Text = 'Bip.Montage';
+
+            % Create ContourPlotCSDButton
+            app.ContourPlotCSDButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
+            app.ContourPlotCSDButton.ButtonPushedFcn = createCallbackFcn(app, @ContourPlotCSDButtonPushed, true);
+            app.ContourPlotCSDButton.Tag = 'contour_button';
+            app.ContourPlotCSDButton.BackgroundColor = [0.8 0.8 0.8];
+            app.ContourPlotCSDButton.Position = [335 423 76 23];
+            app.ContourPlotCSDButton.Text = 'Cont.Plt.CSD';
+
+            % Create TimeFrequencyButton
+            app.TimeFrequencyButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
+            app.TimeFrequencyButton.ButtonPushedFcn = createCallbackFcn(app, @TimeFrequencyButtonPushed, true);
+            app.TimeFrequencyButton.Tag = 'tf_button';
+            app.TimeFrequencyButton.Position = [169 423 76 23];
+            app.TimeFrequencyButton.Text = 'Scalogram';
+
+            % Create RunHFODetector
+            app.TimeFrequencyButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
+            app.TimeFrequencyButton.ButtonPushedFcn = createCallbackFcn(app, @RunHFODetector, true);
+            app.TimeFrequencyButton.Tag = 'tf_button';
+            app.TimeFrequencyButton.Position = [169 396 76 23];
+            app.TimeFrequencyButton.Text = 'Run Detector';
+
+            % Show the figure after all components are created
+            app.NeuroSignalStudioUIFigure.Visible = 'on';
         end
     end
-    % Code that executes before app deletion
-    function delete(app)
-        % Delete UIFigure when app is deleted
-        delete(app.NeuroSignalStudioUIFigure)
+
+    % App creation and deletion
+    methods (Access = public)
+
+        % Construct app
+        function app = neuroSignalStudio(varargin)
+            % Create UIFigure and components
+            createComponents(app)
+            % Register the app with App Designer
+            registerApp(app, app.NeuroSignalStudioUIFigure)
+            % Execute the startup function
+            runStartupFcn(app, @(app)startupFcn(app, varargin{:}))
+            if nargout == 0
+                clear app
+            end
+        end
+        % Code that executes before app deletion
+        function delete(app)
+            % Delete UIFigure when app is deleted
+            delete(app.NeuroSignalStudioUIFigure)
+        end
     end
-end
 end
