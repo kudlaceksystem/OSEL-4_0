@@ -479,7 +479,7 @@ classdef neuroSignalStudio < matlab.apps.AppBase
                     csdTime = [app.csdMatrix; ttime];
                     csdTbl = array2table(csdTime',"VariableNames",[ChnCSD; 'Time(s)']);
                     p2=stackedplot(csdTbl, "XVariable","Time(s)"); title('CSD')
-                    ax_p2 = findobj(p1.NodeChildren,'Type','Axes');
+                    ax_p2 = findobj(p2.NodeChildren,'Type','Axes');
 
                     ymin = min(app.csdMatrix, [], 'all');
                     ymax = max(app.csdMatrix, [], 'all');
