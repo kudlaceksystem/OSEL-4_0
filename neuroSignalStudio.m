@@ -1407,14 +1407,14 @@ classdef neuroSignalStudio < matlab.apps.AppBase
             app.Image = uiimage(app.NeuroSignalStudioUIFigure);
             app.Image.Tag = 'neuroSignalStudio_Icon_1';
             app.Image.Position = [186 20 120 138];
-            app.Image.ImageSource = 'iconNeuroSignalStudio.png';
+            app.Image.ImageSource = 'pics/iconNeuroSignalStudio.png';
 
             % Create Image_2
             app.Image_2 = uiimage(app.NeuroSignalStudioUIFigure);
             app.Image_2.Tag = 'neuroSignalStudio_Icon_2';
             app.Image_2.Visible = 'off';
             app.Image_2.Position = [1 1 57 48];
-            app.Image_2.ImageSource = 'iconNeuroSignalStudio.png';
+            app.Image_2.ImageSource = 'pics/iconNeuroSignalStudio.png';
 
             % Create ImportfromOSELButton
             app.ImportfromOSELButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');
