@@ -475,15 +475,17 @@ classdef label < handle
             end
             
             % Sort channels
-            originalSigInfo = obj.sigInfo;
+            oldSigInfo = obj.sigInfo
             obj.updateSigInfo;
-            
-            for kch = 1 : height(originalSigInfo)
-                indSubject = endsWith(obj.sigInfo.Subject, originalSigInfo.Subject(kch));
-                chnm = strsplit(originalSigInfo.ChName(kch), '-');
+            objSigInfo_ = obj.sigInfo
+            for kch = 1 : height(oldSigInfo)
+                indSubject = endsWith(obj.sigInfo.Subject, oldSigInfo.Subject(kch));
+                chnm = strsplit(oldSigInfo.ChName(kch), '-');
                 chnm = chnm{1};
                 indChannel = startsWith(obj.sigInfo.ChName, chnm);
                 newChannel = find(indSubject & indChannel);
+newChannel_ = newChannel
+Channel_ = obj.lblSet.Channel
                 obj.lblSet.Channel(obj.lblSet.Channel == kch) = newChannel;
                 % pause
             end
@@ -954,6 +956,7 @@ mss = max(obj.controlObj.signalObj.sigTbl.SigStart); mss.Format = 'yyMMdd_HHmmss
             for k = 1 : size(uit.DisplayData, 1)
                 colIdx = find(strcmp(uit.ColumnName, 'ClassName'));
                 c(k, :) = str2num(obj.lblDef.Color(obj.lblDef.ClassName == string(uit.DisplayData{k, colIdx}))); %#ok<FNDSB,AGROW,ST2NM> % Base color of the label
+                c(k, :) = min(c(k, :), 1); %#ok<AGROW>
                 if any(ismember(uit.ColumnName, 'Value'))
                     colIdx = find(strcmp(uit.ColumnName, 'Value'));
                     c(k, :) = 1 - (1 - c(k, :))*double(uit.DisplayData{k, colIdx}/9); %#ok<FNDSB,AGROW> % Bleach the color according to the Value
@@ -1094,7 +1097,11 @@ mss = max(obj.controlObj.signalObj.sigTbl.SigStart); mss.Format = 'yyMMdd_HHmmss
         function c = stringToChar(c)
             for kr = 1 : numel(c)
                 if isstring(c{kr})
-                    c{kr} = char(c{kr});
+                    if ~ismissing(c{kr})
+                        c{kr} = char(c{kr});
+                    else
+                        c{kr} = '';
+                    end
                 end
             end
             for kr = 1 : numel(c)
