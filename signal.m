@@ -161,8 +161,7 @@ classdef signal < handle
                     % Coefficients
                     num = poly(zr);
                     den = poly(pl);
-                    
-                    obj.plotTbl.Data{kch} = single(filtfilt(num, den, double(obj.plotTbl.Data{kch})));
+                    obj.plotTbl.Data{kch} = single(filtfilt(num, den, double(fillmissing(obj.plotTbl.Data{kch}, 'linear'))));
                     
                     clear zrRe zrIm plRe plIm zr pl num den
                 end
@@ -180,14 +179,14 @@ classdef signal < handle
                         obj.h.fltEnDis(kch).String = fltString;
                         obj.h.fltEnDis(kch).BackgroundColor = bkgClr;
                         [num, den] = butter(obj.fltUserSpecs.N, [obj.fltUserSpecs.F1, obj.fltUserSpecs.F2]/(obj.plotTbl.Fs(kch)/2));
-                        obj.plotTbl.Data{kch} = single(filtfilt(num, den, double(obj.plotTbl.Data{kch})));
+                        obj.plotTbl.Data{kch} = single(filtfilt(num, den, double(fillmissing(obj.plotTbl.Data{kch}, 'linear'))));
                         clear num den
                     end
                 else
                     for kch = 1 : size(obj.plotTbl, 1)
                         if contains(obj.h.fltEnDis(kch).String, 'ON')
                             [num, den] = butter(obj.fltUserSpecs.N, [obj.fltUserSpecs.F1, obj.fltUserSpecs.F2]/(obj.plotTbl.Fs(kch)/2));
-                            obj.plotTbl.Data{kch} = single(filtfilt(num, den, double(obj.plotTbl.Data{kch})));
+                            obj.plotTbl.Data{kch} = single(filtfilt(num, den, double(fillmissing(obj.plotTbl.Data{kch}, 'linear'))));
                             clear num den
                         end
                     end
@@ -815,6 +814,7 @@ classdef signal < handle
                 end
             end
             obj.plotSignal;
+            obj.lblUpdate;
         end
        
         

@@ -506,7 +506,7 @@ Channel_ = obj.lblSet.Channel
             end
 
             % Check if all the labels fall within SigStart and SigEnd
-            if ~all(obj.lblSet.Start > obj.sigInfo.SigStart(1) & obj.lblSet.End < obj.sigInfo.SigEnd(1))
+            if ~all(obj.lblSet.Start > obj.sigInfo.SigStart(1) - seconds(1) & obj.lblSet.End < obj.sigInfo.SigEnd(1) + seconds(1))
                 obj.sigInfo
                 obj.lblSet
                 warndlg('File contains labels outside the signal start and end.')

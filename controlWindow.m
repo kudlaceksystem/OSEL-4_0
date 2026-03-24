@@ -131,6 +131,7 @@ classdef controlWindow < handle
                 case 'filter50Hz'
                     obj.signalObj.flt50HzTF = ~obj.signalObj.flt50HzTF;
                     obj.signalObj.plotSignal;
+                    obj.signalObj.lblUpdate;
                     if obj.signalObj.flt50HzTF
                         obj.h.mFilter50Hz.Checked = 'on';
                     else
@@ -139,6 +140,7 @@ classdef controlWindow < handle
                 case 'filterUser'
                     obj.signalObj.fltUserTF = ~obj.signalObj.fltUserTF;
                     obj.signalObj.plotSignal;
+                    obj.signalObj.lblUpdate;
                     if obj.signalObj.fltUserTF
                         obj.h.mFilterUser.Checked = 'on';
                     else
@@ -162,6 +164,7 @@ classdef controlWindow < handle
                     obj.signalObj.fltUserSpecs.F2 = str2double(highFreq);
                     obj.signalObj.fltUserTF = true;
                     obj.signalObj.plotSignal;
+                    obj.signalObj.lblUpdate;
                     obj.h.mFilterUser.Checked = 'on';
                 
                 case 'AverageRef'
@@ -1094,10 +1097,15 @@ kf_ = kf
                         continue
                     end
                     [newSigInfo, newLblDef, newLblSet] = loadLabel(lblpn{fileNumber});
-                    if size(newSigInfo, 1) ~= size(obj.labelObj.sigInfo, 1)
+                    nejedlyInd = find(contains(obj.labelObj.sigInfo.ChName, 'Sz_Nejedly'));
+                    oldSigInfo = obj.labelObj.sigInfo;
+                    if ~isempty(nejedlyInd)
+                        oldSigInfo(nejedlyInd, :) = [];
+                    end
+                    if size(newSigInfo, 1) ~= size(oldSigInfo, 1)
                         kfToLoad = kf; break;
                     end
-                    if newSigInfo.ChName ~= obj.labelObj.sigInfo.ChName
+                    if newSigInfo.ChName ~= oldSigInfo.ChName
                         kfToLoad = kf; break;
                     end
                     if size(newLblDef, 1) > size(obj.labelObj.lblDef, 1)
@@ -1181,7 +1189,6 @@ kf_ = kf
             end
             if jumpToLabelId == -1
                 % Need to find next non-empty file
-
                 kf = obj.labelObj.nextNonEmptyFile();
                 if isempty(kf)
                     return
