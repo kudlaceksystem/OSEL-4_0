@@ -6,6 +6,7 @@ classdef controlWindow < handle
         videoShowObj
         labelObj
         tmr % Timer object, used to run video and cursor along the signal
+        connObj
 
         plotLimS % Current plot limits on x-axis
         nowS % Video and cursor position in time
@@ -80,7 +81,7 @@ classdef controlWindow < handle
                 case 'signalLoad' % Possibly move the code to a function
                     % First ask user for the file path and names. If the user changes their mind during the uigetfile and selects nothing,
                     % getFilepn returns empty and nothing happens so we don't clear the current signal.
-                    filepn = controlWindow.getFilepn('Select signal files', 'on', '\*.*', 'signal');
+                    filepn = controlWindow.getFilepn('Select signal files', 'on', '/*.*', 'signal');
                     if isempty(filepn)
                         return
                     end
@@ -180,6 +181,31 @@ classdef controlWindow < handle
                 
                 case 'toggleBipolar'
                     obj.toggleBipolar;
+
+                case 'connectivity'
+
+                    if isempty(obj.signalObj)
+                        warndlg('Load a signal first.','Connectivity');
+                        return
+                    end
+                
+                    % Create connectivity object / window if it does not exist
+                    if isempty(obj.connObj) || ~isvalid(obj.connObj)
+                        obj.connObj = connWindow(obj);   % pass controlWindow handle
+                    else
+                        figure(obj.connObj.hFig);          % bring existing window to front
+                    end
+
+                    if isempty(obj.nowS)
+                        if isempty(obj.plotLimS)
+                            obj.plotLimS = obj.stg.cDefaultPlotLimS;
+                        end
+                        obj.nowS = mean(obj.plotLimS);   % or obj.plotLimS(1)
+                    end
+                    obj.signalObj.sigUpdate;
+                    obj.nowUpdate;
+                    'jsem po nowUpdate'
+
                 
                 case 'MoveSignalTo'
                     [loadpath, ~, ~, ~] = controlWindow.getLoadpath([]);
@@ -775,6 +801,31 @@ classdef controlWindow < handle
             end
             obj.signalObj.plotSignal;  % Just plots whatever is in plotTbl
         end
+
+        function obj = connNextWindow(obj)
+            % Make sure the connectivity window exists
+            if isempty(obj.connObj) || ~isvalid(obj.connObj)
+                warning('Connectivity window not open.');
+                return;
+            end
+        
+            % Call the same code as the Next button
+            obj.connObj.cbNext();
+        end
+        
+        function obj = connPrevWindow(obj)
+
+            % Make sure the connectivity window exists
+            if isempty(obj.connObj) || ~isvalid(obj.connObj)
+                warning('Connectivity window not open.');
+                return;
+            end
+        
+            % Call the same code as the Next button
+            obj.connObj.cbPrev();
+        end
+
+      
         function obj = moveSigToFolder(obj)
             % moveSigToFolder
             if isempty(obj.destinationFolder)
@@ -891,7 +942,7 @@ classdef controlWindow < handle
         function obj = neuroSignalStudio_checkbox(obj)
             clc;
             disp('NeuroSignal Studio is running....');
-            calculations_exported_V250205(obj);
+            neuroSignalStudio(obj);
         end
 
         %% Zoom
@@ -1367,6 +1418,8 @@ kf_ = kf
             'Tag', 'AverageRef');
             obj.h.mToggleBipolar = uimenu(obj.h.mSignal, 'Label', 'Bipolar pairs', 'Callback', @obj.cbMenu,...
                 'Tag', 'toggleBipolar');
+            obj.h.mConnectivity = uimenu(obj.h.mSignal, 'Label', 'Connectivity', 'Callback', @obj.cbMenu,...
+                'Tag', 'connectivity');
             obj.h.mMoveSignalTo= uimenu(obj.h.mSignal, 'Label', '&Move SignalTo...', 'Callback', @obj.cbMenu,...
             'Tag', 'MoveSignalTo');
            
@@ -1697,6 +1750,7 @@ kf_ = kf
         end
         function saveLoadpath(l, filep, compName, typ)
             l.loadpath = filep;
+            compName = 'F02901'; % Kristof to sem pridal tak si to pak spravte vy bambulove
             l.loadpathSpecial.(compName).(typ) = filep;
             save('loadpath.mat', '-struct', 'l')
             lll = load('loadpath.mat');
