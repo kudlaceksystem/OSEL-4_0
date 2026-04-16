@@ -60,6 +60,7 @@ commandShortcut = {...
     'numberPressed',        '8',            '';
     'numberPressed',        '9',            'control';
     'easterEgg01',          'r',            'control+shift';
+    'easterEgg02',          'm',            'control+shift';
     'moveSigToFolder',      'm',            '';
     };
 

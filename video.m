@@ -49,9 +49,16 @@ whichFileToRead
             end
         end
         function obj = updateNow(obj)
-            if obj.controlObj.nowS > obj.vidLenS
+% video_obj_ = obj
+% video_controlObj_ = obj.controlObj
+% video_nowS_ = [obj.controlObj.nowS]
+% obj.vidLenS
+            if [obj.controlObj.nowS] > obj.vidLenS
+% '_video_updateNow_if'
                 obj.frame = 0;
             else
+% '_video_updateNow_else'
+% video_videoReaderObject_ = obj.vidRdr
                 set(obj.vidRdr, 'CurrentTime', obj.controlObj.nowS*obj.speedOffset)
                 obj.frame = readFrame(obj.vidRdr);
                 obj.controlObj.nowS = get(obj.vidRdr, 'CurrentTime')/obj.speedOffset;

@@ -495,6 +495,7 @@ classdef controlWindow < handle
 
         %% Callback for timer
         function cbTimer(obj, ~, ~) % Timer function
+'_controlWindow_cbTimer'
             if obj.nowS > obj.signalObj.sigLenS || obj.nowS > max([obj.videoObj.vidLenS]) % We overran signal or video
                 stop(obj.tmr)
                 return
