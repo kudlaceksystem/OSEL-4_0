@@ -7,6 +7,7 @@ classdef controlWindow < handle
         labelObj
         tmr % Timer object, used to run video and cursor along the signal
         connObj
+        spectObj
 
         plotLimS % Current plot limits on x-axis
         nowS % Video and cursor position in time
@@ -201,7 +202,29 @@ classdef controlWindow < handle
                     end
                     obj.signalObj.sigUpdate;
                     obj.nowUpdate;
-                    'jsem po nowUpdate'
+
+                case 'spektrogram'
+
+                    if isempty(obj.signalObj)
+                        warndlg('Load a signal first.','Spektrogram');
+                        return
+                    end
+                
+                    % Create connectivity object / window if it does not exist
+                    if isempty(obj.spectObj) || ~isvalid(obj.spectObj)
+                        obj.spectObj = specWindow(obj);   % pass controlWindow handle
+                    else
+                        figure(obj.spectObj.hFig);          % bring existing window to front
+                    end
+
+                    if isempty(obj.nowS)
+                        if isempty(obj.plotLimS)
+                            obj.plotLimS = obj.stg.cDefaultPlotLimS;
+                        end
+                        obj.nowS = mean(obj.plotLimS);   % or obj.plotLimS(1)
+                    end
+                    obj.signalObj.sigUpdate;
+                    obj.nowUpdate;
 
                 
                 case 'MoveSignalTo'
@@ -1413,6 +1436,8 @@ kf_ = kf
                 'Tag', 'toggleBipolar');
             obj.h.mConnectivity = uimenu(obj.h.mSignal, 'Label', 'Connectivity', 'Callback', @obj.cbMenu,...
                 'Tag', 'connectivity');
+            obj.h.mConnectivity = uimenu(obj.h.mSignal, 'Label', 'Spektrogram', 'Callback', @obj.cbMenu,...
+                'Tag', 'spektrogram');
             obj.h.mMoveSignalTo= uimenu(obj.h.mSignal, 'Label', '&Move SignalTo...', 'Callback', @obj.cbMenu,...
             'Tag', 'MoveSignalTo');
            
