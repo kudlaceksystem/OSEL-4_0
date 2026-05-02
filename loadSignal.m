@@ -20,6 +20,8 @@ function sigTbl = loadSignal(filepn)
             elseif isfield(l, 'AntanDat')
                 sigTbl = loadAntan(l, filepn);
             end
+        case '.edf'
+            sigTbl = loadEdf(filepn);
         case '.smr'
             sigTbl = loadSmr(filepn);
         case '.smrx'
@@ -172,6 +174,51 @@ function sigTbl = loadAntan(l, filepn)
     end
     % Create table
     sigTbl = table(Subject, ChName, SigStart, SigEnd, Fs, Data);
+end
+function sigTbl = loadEdf(filepn)
+    info = edfinfo(filepn);
+    data = edfread(filepn);
+    
+    % Subject
+    if isfield(info, 'Patient')
+        Subject = repelem(info.Patient, info.NumSignals)';
+    else
+        [~, filen, ~] = fileparts(filepn);
+        ss = strsplit(filen, '-');
+        Subject = repelem(string(ss{1}), info.NumSignals)';
+    end
+    
+    % Channel names
+    ChName = data.Properties.VariableNames;
+    ChName = string(ChName);
+    ChName = ChName(:);
+    
+    % Sampling rate
+    if ~all(diff(data.("Record Time")) == info.DataRecordDuration)
+        warning('Some record time differences do not correspond to info.DataRecordDuration')
+    end
+    Fs = info.NumSamples/seconds(info.DataRecordDuration);
+    
+    % Signal start in datetime format
+    SigStart = datetime(info.StartDate + " " + info.StartTime, 'InputFormat', 'dd.MM.yy HH.mm.ss');
+    SigStart = repelem(SigStart, info.NumSignals)';
+    
+    % Signal end in datetime format
+    SigEnd = SigStart  +  info.NumDataRecords*info.DataRecordDuration;
+        
+    % Signal proper
+    for kch = 1 : info.NumSignals
+        sizes = cellfun(@(x) size(x), data.(ChName(kch)), 'UniformOutput', false);
+        isConsistent = all(cellfun(@(s) isequal(s, sizes{1}), sizes));
+        if ~isConsistent
+            warning('EDF records have different numbers of samples.')
+        end
+        Data{kch, 1} = cell2mat(data.(ChName(kch)))'; %#ok<AGROW>
+    end
+    
+    % Create table
+    sigTbl = table(Subject, ChName, SigStart, SigEnd, Fs, Data);
+    
 end
 function sigTbl = loadSmrBrano(filepn) %#ok<DEFNU>
     [~, filen, ~] = fileparts(filepn);
@@ -333,8 +380,7 @@ function sigTbl = loadSmrx(filepn)
         case 'prahaMotolChronic'
             loadPrahaMotolChronic;
         case 'general'
-disp('Going to loadGeneral')
-pause
+            disp('Going to loadGeneral')
             loadGeneral;
     end
     
