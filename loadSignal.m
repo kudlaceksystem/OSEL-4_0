@@ -565,7 +565,7 @@ function sigTbl = loadH5(filepn)
 end
 function sigTbl = loadRhd(filepn)
     [~, filen, ~] = fileparts(filepn);
-    [chnm, signalData, fs, digitalIn] = read_Intan_RHD2000_file(filepn);
+    [chnm, signalData, fs, digitalIn, digitalOut] = read_Intan_RHD2000_file(filepn);
     for kch2 = 1 : numel(chnm)
         str = char(chnm(kch2));
         r = regexpi(str, '\w\w*-[ABCD]\w*-\w+', 'match');
@@ -615,6 +615,22 @@ function sigTbl = loadRhd(filepn)
             sigTbl = [sigTbl; sigTblDI0]; %#ok<AGROW>
         end
     end
+
+    % Add Digital Out data
+    subjects = unique(sigTbl.Subject);
+    subjects = subjects(subjects ~= "");
+    for ks = 1 : numel(subjects)
+        for kd = 1 : size(digitalOut, 1)
+            sigTblDO0 = sigTbl(sigTbl.Subject == subjects{ks}, :);
+            sigTblDO0.Subject = "";
+            ss = strsplit(sigTblDO0.ChName, '-');
+            chnm = "DO" + string(num2str(kd)) + "-" + ss{2};
+            sigTblDO0.ChName = chnm;
+            sigTblDO0.Data = {digitalOut(kd, :)};
+            sigTbl = [sigTbl; sigTblDO0]; %#ok<AGROW>
+        end
+    end
+
     
     % Pair subject names with recording positions
     subjects = [];
@@ -638,7 +654,7 @@ function sigTbl = loadRhd(filepn)
 end
 function sigTbl = loadRhs(filepn)
     [~, filen, ~] = fileparts(filepn);
-    [chnm, signalData, fs, digitalIn] = read_Intan_RHS2000_file(filepn);
+    [chnm, signalData, fs, digitalIn, digitalOut] = read_Intan_RHS2000_file(filepn);
     for kch2 = 1 : numel(chnm)
         str = char(chnm(kch2));
         r = regexpi(str, '\w\w*-[ABCD]\w*-\w+', 'match');
@@ -692,6 +708,21 @@ function sigTbl = loadRhs(filepn)
             sigTbl = [sigTbl; sigTblDI0]; %#ok<AGROW>
         end
     end
+
+    % Add Digital Out data
+    subjects = unique(sigTbl.Subject);
+    subjects = subjects(subjects ~= "");
+    for ks = 1 : numel(subjects)
+        for kd = 1 : size(digitalOut, 1)
+            sigTblDO0 = sigTbl(sigTbl.Subject == subjects{ks}, :);
+            sigTblDO0.Subject = "";
+            ss = strsplit(sigTblDO0.ChName, '-');
+            chnm = "DO" + string(num2str(kd)) + "-" + ss{2};
+            sigTblDO0.ChName = chnm;
+            sigTblDO0.Data = {digitalOut(kd, :)};
+            sigTbl = [sigTbl; sigTblDO0]; %#ok<AGROW>
+        end
+    end
     
     % Pair subject names with recording positions
     subjects = [];
@@ -723,7 +754,7 @@ function sigTbl = loadRhs(filepn)
 end
 
 %% Intan functions
-function [channelNames, signalData, fs, digitalInData] = read_Intan_RHD2000_file(filepn)
+function [channelNames, signalData, fs, digitalInData, digitalOutData] = read_Intan_RHD2000_file(filepn)
     % read_Intan_RHD2000_file
     %
     % Version 3.0, 8 February 2021
@@ -1277,10 +1308,11 @@ function [channelNames, signalData, fs, digitalInData] = read_Intan_RHD2000_file
     nativeChannelNames = string({amplifier_channels.native_channel_name})';
     signalData = amplifier_data;
     digitalInData = board_dig_in_data;
+    digitalOutData = board_dig_out_data;
     fs = frequency_parameters.amplifier_sample_rate;
     return
 end    
-function [channelNames, signalData, fs, digitalInData] = read_Intan_RHS2000_file(filepn)
+function [channelNames, signalData, fs, digitalInData, digitalOutData] = read_Intan_RHS2000_file(filepn)
     % read_Intan_RHS2000_file
     %
     % Version 3.0, 8 February 2021
@@ -1724,6 +1756,7 @@ function [channelNames, signalData, fs, digitalInData] = read_Intan_RHS2000_file
     nativeChannelNames = string({amplifier_channels.native_channel_name})';
     signalData = amplifier_data;
     digitalInData = board_dig_in_data;
+    digitalOutData = board_dig_out_data;
     fs = frequency_parameters.amplifier_sample_rate;
 end
 end

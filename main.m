@@ -1,4 +1,4 @@
-h = findall(0,'type','figure'); close(h); clear;clc; % Close all windows
+    h = findall(0,'type','figure'); close(h); clear;clc; % Close all windows
 
 addpath('CEDMATLAB')
 addpath('CEDMATLAB\CEDS64ML')
