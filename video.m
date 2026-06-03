@@ -7,7 +7,8 @@ classdef video < handle
         vidRdr % Video reader object
         vidLenS % Video length in seconds
         speedOffset % Sometimes the video file shows different duration than the EEG file although they were recorded synchronously with physically same time.
-        
+        timeOffsetS
+
         frame
         height
         width
@@ -24,13 +25,13 @@ classdef video < handle
             obj.controlObj = ctrObj;
             obj.stg = stgs;
             obj.key = keyShortTbl;
+            obj.timeOffsetS = 0;
             obj = obj.initializeReader;
         end
         function obj = initializeReader(obj)
 %             whichFileToRead = obj.controlObj.currentFile; % This works only if there is one-one relationship between the signal and video files
             whichFileToRead = obj.controlObj.findCorrespondingFile(obj.controlObj.signalObj.filepn{obj.controlObj.currentFile}, obj.filepn); % Find video file using date of the file specified in the file name. May be safer.
             obj.currentFile = whichFileToRead; % For control window
-whichFileToRead
             if isempty(whichFileToRead)
                 obj.frame = 0;
                 obj.vidLenS = 0;
@@ -40,7 +41,7 @@ whichFileToRead
             else
                 obj.vidRdr = VideoReader(obj.filepn{whichFileToRead});
                 obj.vidLenS = obj.vidRdr.Duration;
-                whichFrame = round(obj.vidRdr.FrameRate*obj.controlObj.nowS) + 1; % May be inaccurate if there are e.g. dropped frames.
+                whichFrame = round(obj.vidRdr.FrameRate*obj.controlObj.nowS - obj.timeOffsetS) + 1; % May be inaccurate if there are e.g. dropped frames.
                 obj.frame = read(obj.vidRdr, whichFrame);
                 obj.height = obj.vidRdr.Height;
                 obj.width = obj.vidRdr.Width;
@@ -49,24 +50,24 @@ whichFileToRead
             end
         end
         function obj = updateNow(obj)
-            if obj.controlObj.nowS > obj.vidLenS
+            if obj.controlObj.nowS - obj.timeOffsetS > obj.vidLenS
                 obj.frame = 0;
             else
-                set(obj.vidRdr, 'CurrentTime', obj.controlObj.nowS*obj.speedOffset)
+                set(obj.vidRdr, 'CurrentTime', obj.controlObj.nowS*obj.speedOffset - obj.timeOffsetS)
                 obj.frame = readFrame(obj.vidRdr);
-                obj.controlObj.nowS = get(obj.vidRdr, 'CurrentTime')/obj.speedOffset;
+                obj.controlObj.nowS = get(obj.vidRdr, 'CurrentTime')/obj.speedOffset + obj.timeOffsetS;
                 obj.controlObj.signalObj.nowUpdate;
                 obj.controlObj.videoShowObj.nowUpdate;
             end
         end
         function obj = nextFrame(obj)
-            if obj.controlObj.nowS > obj.vidLenS
+            if obj.controlObj.nowS > obj.vidLenS - obj.timeOffsetS
                 obj.frame = 0;
                 obj.controlObj.signalObj.nowUpdate;
                 obj.controlObj.videoShowObj.nowUpdate;
             else
                 obj.frame = readFrame(obj.vidRdr);
-                obj.controlObj.nowS = get(obj.vidRdr, 'CurrentTime')/obj.speedOffset;
+                obj.controlObj.nowS = get(obj.vidRdr, 'CurrentTime')/obj.speedOffset + obj.timeOffsetS;
                 obj.controlObj.signalObj.nowUpdate;
                 obj.controlObj.videoShowObj.nowUpdate;
             end
