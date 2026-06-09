@@ -1325,21 +1325,21 @@ kf_ = kf
             % % % obj.h.panFileNumber.Position(2) = hf.Position(4) - obj.h.panFileNumber.Position(4);
             obj.h.panViewControl.Position(2) = hf.Position(4) - obj.h.panViewControl.Position(4);
             obj.h.panFilepn.Position(2) = hf.Position(4) - obj.h.panNav.Position(4);
-            obj.h.panSig.Position(2) = hf.Position(4) - obj.h.panNav.Position(4);
-
-            obj.signalObj.h.panSig.Units = 'pixels';
-            obj.signalObj.h.panSig.Position(4) = hf.Position(4)...
-                - obj.h.panNav.Position(4)...
-                - obj.signalObj.h.panSig.Position(2);
-            obj.signalObj.h.panSig.Units = 'normalized';
-
-            obj.signalObj.h.panChNm.Units = 'pixels';
-            obj.signalObj.h.panChNm.Position(4) = hf.Position(4)...
-                - obj.h.panNav.Position(4)...
-                - obj.signalObj.h.panChNm.Position(2);
-            obj.signalObj.h.panChNm.Units = 'normalized';
-
-
+            obj.h.panFilepn.Position(3) = hf.Position(3);
+            
+            
+            if ~isempty(obj.signalObj)
+                obj.signalObj.h.panSig.Units = 'pixels';
+                obj.signalObj.h.panSig.Position(4) = hf.Position(4)...
+                        - obj.h.panNav.Position(4)...
+                        - obj.signalObj.h.panSig.Position(2);
+                obj.signalObj.h.panSig.Units = 'normalized';
+                obj.signalObj.h.panChNm.Units = 'pixels';
+                obj.signalObj.h.panChNm.Position(4) = hf.Position(4)...
+                        - obj.h.panNav.Position(4)...
+                        - obj.signalObj.h.panChNm.Position(2);
+                obj.signalObj.h.panChNm.Units = 'normalized';
+            end
 
 % hfChild1 = hf.Children(1)
 % hfChild2 = hf.Children(2)
