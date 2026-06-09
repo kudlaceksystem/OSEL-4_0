@@ -1326,7 +1326,9 @@ kf_ = kf
             obj.h.panViewControl.Position(2) = hf.Position(4) - obj.h.panViewControl.Position(4);
             obj.h.panFilepn.Position(2) = hf.Position(4) - obj.h.panNav.Position(4);
             obj.h.panFilepn.Position(3) = hf.Position(3);
-            
+            obj.h.eSignalpn.Position(3) = obj.h.panFilepn.Position(3);
+            obj.h.eVideopn.Position(3) = obj.h.panFilepn.Position(3);
+            obj.h.eLabelpn.Position(3) = obj.h.panFilepn.Position(3);
             
             if ~isempty(obj.signalObj)
                 obj.signalObj.h.panSig.Units = 'pixels';
