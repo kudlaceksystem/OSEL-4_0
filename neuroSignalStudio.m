@@ -79,8 +79,14 @@ classdef neuroSignalStudio < matlab.apps.AppBase
                 app.troughMean = [];
                 plotTbl = app.obj.signalObj.plotTbl;
                 delete(app.UIAxes.Children);
+                targetFig = findobj('Type', 'figure', 'Tag', 'ImpDispFigure');
+
+                if ~isempty(targetFig)
+                    close(targetFig); % Only closes the HFO Detector figure
+                end
+
                 app.fig = figure('Name', 'Import Displayed: NeuroSignal Studio',...
-                    'NumberTitle', 'on','Position', [600, 100, 1200, 800]);
+                    'NumberTitle', 'on','Position', [600, 100, 1200, 800], 'Tag','ImpDispFigure');
                 numch = size(plotTbl, 1); % Number of Channel
                 height = 0.95/numch;
                 % Truncate each channel to plot limits
@@ -997,36 +1003,49 @@ classdef neuroSignalStudio < matlab.apps.AppBase
 
         % Button pushed function: RunHFODetector
         function RunHFODetector(app, event)
-            % GUI window
-            fig = figure('Name','HFO Detector','Position',[300 100 1000 700]);
-            % Buttons and the panel for ground truth
-            controlPanel = uipanel('Title','Controls','FontSize',12,...
-                'Position',[.02 .68 .28 .30]);
-            % Load button
-            uicontrol(controlPanel,'Style','pushbutton','String','Load Signal',...
-                'FontSize',10,...
-                'Position',[10 95 120 30],'Callback',@loadSignal);
-            % ML button
-            uicontrol(controlPanel,'Style','pushbutton','String','Run Ensemble',...
-                'FontSize',10,...
-                'Position',[10 50 120 30],'Callback',@runML);
-            % Channel
-            uicontrol(controlPanel,'Style','text','String','Channel Num:',...
-                'Position',[10 130 120 30],'HorizontalAlignment','left','FontSize',10);
-            % Ground truth edit box
-            gtInput = uicontrol(controlPanel,'Style','edit','String','1',...
-                'Position',[140 130 50 30],'BackgroundColor','white','FontSize',10);
-            % Result box
-            resultBox = uicontrol(controlPanel,'Style','text','String','Result: ',...
-                'FontSize',12,'FontWeight','bold',...
-                'Position',[10 10 250 25],...
-                'BackgroundColor','white','ForegroundColor','black');
-            % Top trace subplot: raw signal
-            axRaw = subplot('Position', [0.35 0.55 0.6 0.35]);
-            title(axRaw, 'Raw Signal');
-            % Bottom trace subplot: scalogram
-            axScalogram = subplot('Position', [0.35 0.1 0.6 0.35]);
+            % Look for an existing figure with the specific tag 'HFO_Detector_Figure'
+            existingFig = findobj('Type', 'figure', 'Tag', 'HFO_Detector_Window');
 
+            if ~isempty(existingFig)
+                % If it exists, bring it to the front
+                figure(existingFig);
+            else
+                % If it doesn't exist, create a new one with a unique tag and title
+
+                % GUI window
+                fig = figure('Name','HFO Detector','Position',[300 100 1000 700], 'Tag', 'HFO_Detector_Window');
+                % Buttons and the panel for ground truth
+                controlPanel = uipanel('Title','Controls','FontSize',12,...
+                    'Position',[.02 .68 .28 .30]);
+                % Load button
+                uicontrol(controlPanel,'Style','pushbutton','String','Load Signal',...
+                    'FontSize',10,...
+                    'Position',[10 95 120 30],'Callback',@loadSignal);
+                % ML button
+                uicontrol(controlPanel,'Style','pushbutton','String','Run Ensemble',...
+                    'FontSize',10,...
+                    'Position',[10 50 120 30],'Callback',@runML);
+                % DL button
+                uicontrol(controlPanel,'Style','pushbutton','String','Run DLnet',...
+                    'FontSize',10,...
+                    'Position',[135 50 120 30],'Callback',@runDLnet);
+                % Channel
+                uicontrol(controlPanel,'Style','text','String','Channel Num:',...
+                    'Position',[10 130 120 30],'HorizontalAlignment','left','FontSize',10);
+                % Ground truth edit box
+                gtInput = uicontrol(controlPanel,'Style','edit','String','1',...
+                    'Position',[140 130 50 30],'BackgroundColor','white','FontSize',10);
+                % Result box
+                resultBox = uicontrol(controlPanel,'Style','text','String','Result: ',...
+                    'FontSize',12,'FontWeight','bold',...
+                    'Position',[10 10 250 25],...
+                    'BackgroundColor','white','ForegroundColor','black');
+                % Top trace subplot: raw signal
+                axRaw = subplot('Position', [0.35 0.55 0.6 0.35]);
+                title(axRaw, 'Raw Signal');
+                % Bottom trace subplot: scalogram
+                axScalogram = subplot('Position', [0.35 0.1 0.6 0.35]);
+            end
             %% Callback: Load Signal
             function loadSignal(~,~)
                 gtStr = get(gtInput, 'String');
@@ -1065,27 +1084,75 @@ classdef neuroSignalStudio < matlab.apps.AppBase
                 set(resultBox, 'String','Result: ','BackgroundColor','white','ForegroundColor','black');
             end
             signalData = [];
+            %% Callback: DLnet prediction
+            function runDLnet(~,~)
+                if isempty(signalData)
+                    errordlg('Load a signal first!');
+                    return;
+                end
+                basePath = 'resource/hfo_cnn_lstm_aug_v1_model.mat';
+                dl = load(basePath); % ML ensemble pre-train model
+                toSeq = @(X4d) num2cell(squeeze(X4d)', 2);
+                sig = double(signalData(:));
+                Xtest(:,1,1,1) = padOrTrunc(sig, dl.targetLen);
+                % oselDir = dir(fullfile(basePath, 'Open Signal Explorer and Labeler OSEL*'));
+                % if ~isempty(oselDir)
+                %     modelPath = fullfile(basePath, oselDir(end).name,'\resource\', 'trainedModel_Ensemble.mat');
+                %     ml = load(modelPath); % ML ensemble pre-train model
+                % else
+                %     error('No OSEL folder found in "%s".', basePath);
+                % end
+               XFit  = toSeq(Xtest(:,:,:,1));
+               yfit = classify(dl.net,XFit); % 1: HFO, 0: notHFO
+               
+               if yfit == 'HFO'
+                    result = 'DL: HFO Detected';
+                    bgColor = [0.6 1 0.6]; % light Green
+                    fgColor = [0.7 0 0];
+                    
+                else
+                    result = 'DL: Not HFO!';
+                    bgColor = [1 0.6 0.6]; % light Red
+                    fgColor = [0 0.5 0];
+                end
+                set(resultBox, 'String',['Result: ' result],...
+                    'BackgroundColor',bgColor, 'ForegroundColor',fgColor);
+                % test the decision on the raw signal
+                axes(axRaw);
+                hold on;
+                yl = ylim;
+                text(10, yl(2)*0.9, result, 'FontSize',14,'FontWeight','bold',...
+                    'Color',fgColor,'BackgroundColor',bgColor,'EdgeColor','k','Margin',3);
+                hold off;
+            end
+            function out = padOrTrunc(sig, targetLen)
+                sig = sig(:);
+                n   = numel(sig);
+                if n >= targetLen
+                    out = single(sig(1:targetLen));
+                else
+                    padTotal = targetLen - n;
+                    padLeft  = floor(padTotal / 2);
+                    padRight = padTotal - padLeft;
+                    out = [zeros(padLeft,1,'single'); single(sig); zeros(padRight,1,'single')];
+                end
+            end
+
             %% Callback: ML ensemble prediction
             function runML(~,~)
                 if isempty(signalData)
                     errordlg('Load a signal first!');
                     return;
                 end
-                basePath = '\\neurodata\common stuff\OSEL\';
-                oselDir = dir(fullfile(basePath, 'Open Signal Explorer and Labeler OSEL*'));
-                if ~isempty(oselDir)
-                    modelPath = fullfile(basePath, oselDir(end).name,'\resource\', 'trainedModel_Ensemble.mat');
-                    ml = load(modelPath); % ML ensemble pre-train model
-                else
-                    error('No OSEL folder found in "%s".', basePath);
-                end
+                basePath = 'resource\trainedModel_Ensemble.mat';
+                ml = load(basePath); % ML ensemble pre-train model
                 yfit = hfoPrediction_ML(signalData, app.fs, ml.trainedModel_Ensemble); % 1: HFO, 0: notHFO
                 if yfit == 0
-                    result = 'No HFO Detected';
+                    result = 'Ensmbl: Not HFO';
                     bgColor = [1 0.6 0.6]; % light Red
                     fgColor = [0 0.5 0];
                 else
-                    result = 'HFO Detected!';
+                    result = 'Ensmbl: HFO Detected!';
                     bgColor = [0.6 1 0.6]; % light Green
                     fgColor = [0.7 0 0];
                 end
@@ -1100,6 +1167,7 @@ classdef neuroSignalStudio < matlab.apps.AppBase
                 hold off;
                 % Functions for machine learning
                 function yfit = hfoPrediction_ML(signalData, fs, trainedModel)
+              
                     filtered_signal = func_designFilt(signalData, 4, 0.1, 1000, fs, 'BPIIR');
                     % Extract Features
                     [KF, SkF, SeF , EeF , EF ] = Statistical_features_V2(filtered_signal,1);
@@ -1121,33 +1189,45 @@ classdef neuroSignalStudio < matlab.apps.AppBase
                 end
                 % Filter Function
                 function filteredSignal = func_designFilt(signalData,n,hpf1, hpf2,fs,filterType)
-                    switch filterType
-                        case  'BPIIR'
-                            FiltFR = designfilt('bandpassiir', ...
-                                'FilterOrder', n, ...
-                                'HalfPowerFrequency1', hpf1, ...
-                                'HalfPowerFrequency2', hpf2, ...
-                                'SampleRate', fs);
-                        case 'HPIRR'
-                            FiltFR = designfilt('highpassiir', ...
-                                'FilterOrder', n, ...
-                                'HalfPowerFrequency', hpf1, ...
-                                'SampleRate', fs);
-                        case 'BPFIR'
-                            FiltFR = designfilt("bandpassfir", ...
-                                FilterOrder=n, CutoffFrequency1=hpf1, ...
-                                CutoffFrequency2=hpf2, SampleRate=fs);
-                        case 'HPFIR'
-                            FiltFR = designfilt('highpassfir', ...       % Response type
-                                'StopbandFrequency',hpf1-150, ...     % Frequency constraints
-                                'PassbandFrequency',hpf1, ...
-                                'StopbandAttenuation',55, ...    % Magnitude constraints
-                                'PassbandRipple',4, ...
-                                'DesignMethod','kaiserwin', ...  % Design method
-                                'ScalePassband',false, ...       % Design method options
-                                'SampleRate',fs);              % Sample rate
+                    requiredMinLength = 2 * (fs / 4); % Theoretical minimum samples for the lower cutoff (4 Hz)
+
+                    if length(signalData) < requiredMinLength
+                        % Display a warning in the Command Window but prevent the app from crashing
+                        warning('WARNING: Signal length (%d samples) is TOO SHORT for stable filtering at %d Hz sampling rate! Filtering bypassed.', ...
+                            length(signalData), fs);
+                        % Pass the raw signal (or zeros) to prevent NaN generation down the line
+                        filteredSignal = signalData;
+                    else
+                        % Perform normal filtering if the signal length is sufficient
+                 
+                        switch filterType
+                            case  'BPIIR'
+                                FiltFR = designfilt('bandpassiir', ...
+                                    'FilterOrder', n, ...
+                                    'HalfPowerFrequency1', hpf1, ...
+                                    'HalfPowerFrequency2', hpf2, ...
+                                    'SampleRate', fs);
+                            case 'HPIRR'
+                                FiltFR = designfilt('highpassiir', ...
+                                    'FilterOrder', n, ...
+                                    'HalfPowerFrequency', hpf1, ...
+                                    'SampleRate', fs);
+                            case 'BPFIR'
+                                FiltFR = designfilt("bandpassfir", ...
+                                    FilterOrder=n, CutoffFrequency1=hpf1, ...
+                                    CutoffFrequency2=hpf2, SampleRate=fs);
+                            case 'HPFIR'
+                                FiltFR = designfilt('highpassfir', ...       % Response type
+                                    'StopbandFrequency',hpf1-150, ...     % Frequency constraints
+                                    'PassbandFrequency',hpf1, ...
+                                    'StopbandAttenuation',55, ...    % Magnitude constraints
+                                    'PassbandRipple',4, ...
+                                    'DesignMethod','kaiserwin', ...  % Design method
+                                    'ScalePassband',false, ...       % Design method options
+                                    'SampleRate',fs);              % Sample rate
+                        end
+                        filteredSignal = filtfilt(FiltFR,signalData); % fd = 1 x samp
                     end
-                    filteredSignal = filtfilt(FiltFR,signalData); % fd = 1 x samp
                 end
                 % Function for Statistical Features
                 function [o1,o2,o3,o4,o5] = Statistical_features_V2(filtered_signal,chn_num)
@@ -1207,7 +1287,7 @@ classdef neuroSignalStudio < matlab.apps.AppBase
                     for m=1:chn_num
                         ChSig=filtered_signal(:,m);
                         waveletFunction = 'db4'; %Daubechies
-                        waveletLevel = wmaxlev(fs,waveletFunction);  % to determine decomposition level
+                        waveletLevel = wmaxlev(length(ChSig),waveletFunction);  % to determine decomposition level
                         [wCoe,L] = wavedec(ChSig,waveletLevel,waveletFunction);
                         ChD5 = detcoef(wCoe,L,waveletLevel);   % Mu detail coefficients
                         % Mean of the absolute values
@@ -1332,7 +1412,7 @@ classdef neuroSignalStudio < matlab.apps.AppBase
             app.NeuroSignalStudioUIFigure = uifigure('Visible', 'off');
             app.NeuroSignalStudioUIFigure.Position = [left bottom figW figH]; %  [left bottom width height]
             app.NeuroSignalStudioUIFigure.Name = 'NeuroSignal Studio';
-
+            app.NeuroSignalStudioUIFigure.Tag = 'NSS';
             % Create UIAxes
             app.UIAxes = uiaxes(app.NeuroSignalStudioUIFigure);
             title(app.UIAxes, 'Multichannel Raw Signals')
@@ -1407,14 +1487,14 @@ classdef neuroSignalStudio < matlab.apps.AppBase
             app.Image = uiimage(app.NeuroSignalStudioUIFigure);
             app.Image.Tag = 'neuroSignalStudio_Icon_1';
             app.Image.Position = [186 20 120 138];
-            app.Image.ImageSource = 'iconNeuroSignalStudio.png';
+            app.Image.ImageSource = 'pics/iconNeuroSignalStudio.png';
 
             % Create Image_2
             app.Image_2 = uiimage(app.NeuroSignalStudioUIFigure);
             app.Image_2.Tag = 'neuroSignalStudio_Icon_2';
             app.Image_2.Visible = 'off';
             app.Image_2.Position = [1 1 57 48];
-            app.Image_2.ImageSource = 'iconNeuroSignalStudio.png';
+            app.Image_2.ImageSource = 'pics/iconNeuroSignalStudio.png';
 
             % Create ImportfromOSELButton
             app.ImportfromOSELButton = uibutton(app.NeuroSignalStudioUIFigure, 'push');

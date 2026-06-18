@@ -979,9 +979,15 @@ classdef controlWindow < handle
             obj.videoShowObj = obj.videoShowObj.updateStreams;
         end
         function obj = neuroSignalStudio_checkbox(obj)
-            clc;
-            disp('NeuroSignal Studio is running....');
-            neuroSignalStudio(obj);
+            existingGUI = findall(0, 'Type', 'figure', 'Name', 'NeuroSignal Studio');
+
+            if ~isempty(existingGUI)
+                focus(existingGUI);
+            else
+                clc;
+                disp('NeuroSignal Studio is running....');
+                neuroSignalStudio(obj);
+            end
         end
 
 
