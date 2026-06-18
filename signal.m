@@ -445,69 +445,96 @@ isemptyConnObj_ = isempty(obj.controlObj.connObj)
 
         
         function obj = customAverageRefDialog(obj)   % Function for calculating average reference
-            if obj.avgRefTF 
-                disp('Average Reference Mode is ON!!')
-                % Creates new dialog window
-                dialogAveRef = dialog('Position', [300, 300, 300, 50 + 30 * numel(obj.sigTbl.ChName)], 'Name','Average Reference Settings');
-                % Default Values
-                checkboxes = gobjects(numel(obj.sigTbl.ChName), 1);
+            if obj.avgRefTF
+                figHeight = 500;
+                figWidth = 300;
+                fig_averageRef = uifigure('Position',[300,300,figWidth,figHeight],'Name','Average Reference Settings');
+                fig_averageRef.CloseRequestFcn = @(f,~) cancelClose(f);
+                % Uicontrol separate calculation based on hemispheres
+                separateHemi = uicontrol('Parent', fig_averageRef, ...
+                    'Style', 'checkbox', ...
+                    'String', 'Separate Hemispheres', ...
+                    'Position', [10, figHeight-40, 200, 25], ...
+                    'Value', 0);
+                % Scrollable panel
+                scrollPanel = uipanel(fig_averageRef,'Position',[0,50,figWidth,figHeight-100]); %
+                scrollPanel.Scrollable = 'on';
+                lineHeight = 30;
+                checkboxes = gobjects(numel(obj.sigTbl.ChName),1);
+                avgRefChannelNames = false(numel(obj.sigTbl.ChName),1);
                 for kchbx = 1:numel(obj.sigTbl.ChName)
-                    checkboxes(kchbx) = uicontrol('Parent', dialogAveRef, ...
-                        'Style', 'checkbox', ...
-                        'Position', [50, 50 + (numel(obj.sigTbl.ChName) - kchbx) * 30, 200, 30], ...
+                    checkboxes(kchbx) = uicontrol('Parent', scrollPanel, ...
+                        'Style','checkbox', ...
+                        'Position',[10, (lineHeight*numel(obj.sigTbl.ChName)) - kchbx*lineHeight, 280, 25], ...
                         'String', obj.sigTbl.ChName{kchbx}, ...
                         'Value', ismember(obj.sigTbl.ChName{kchbx}, obj.sigTbl.ChName(obj.chToPlot)));
                     avgRefChannelNames(kchbx) = ismember(obj.sigTbl.ChName{kchbx}, obj.sigTbl.ChName(obj.chToPlot));
                 end
-               % "All" button
-                uicontrol('Parent', dialogAveRef, ...
-                    'Position', [50, 10, 50, 30], ...
-                    'String', 'All', ...
-                    'Callback', @(src, event) set(checkboxes, 'Value', 1));
-                % "None" button
-                uicontrol('Parent', dialogAveRef, ...
-                    'Position', [100, 10, 50, 30], ...
-                    'String', 'None', ...
-                    'Callback', @(src, event) set(checkboxes, 'Value', 0));
-                % OK button
-                btnOK = uicontrol('Parent',dialogAveRef, 'Position',[150,10,50,30], ...
-                    'String','OK', 'Callback',@okCallback);
-                % Cancel button
-                btnCancel = uicontrol('Parent',dialogAveRef, 'Position',[200,10,50,30], ...
-                    'String','Cancel', 'Callback',@cancelCallback);
-                % wait till user closes window
-                uiwait(dialogAveRef);
-               else
+                % Buttons (All / None / OK / Cancel)
+                btnAll = uicontrol('Parent', fig_averageRef, 'Position',[50,10,50,30], ...
+                    'String','All', 'Callback', @(src,event)set(checkboxes,'Value',1));
+                btnNone = uicontrol('Parent', fig_averageRef, 'Position',[100,10,50,30], ...
+                    'String','None', 'Callback', @(src,event)set(checkboxes,'Value',0));
+                btnOK = uicontrol('Parent',fig_averageRef, 'Position',[150,10,50,30], ...
+                    'String','OK', 'Callback', @okCallback);
+                btnCancel = uicontrol('Parent',fig_averageRef, 'Position',[200,10,50,30], ...
+                    'String','Cancel', 'Callback', @cancelCallback);
+                % Wait till user closes window
+                uiwait(fig_averageRef);
+            else
                 avgRefChannelNames = [];
                 disp('Average Reference Mode is OFF!!')
                 obj.plotTbl.Data = obj.sigTbl.Data(obj.chToPlot);
                 obj.sigUpdate;
             end
-            
             % If OK button pushed
             function avgRefChannelNames = okCallback(~,~)
+                disp('Average Reference Mode is ON!!');
                 selectedChannels = {};
                 selectedData = {};
                 for kcbx = 1:numel(checkboxes)
                     if checkboxes(kcbx).Value
                         selectedChannels{end+1} = obj.sigTbl.ChName{kcbx};
-                        selectedData{end+1,1} = obj.plotTbl.Data{obj.plotTbl.ChName ==selectedChannels{end}};
+                        selectedData{end+1,1} = obj.plotTbl.Data{obj.plotTbl.ChName == selectedChannels{end}};
                     end
                 end
                 obj.avgRefChannelNames = selectedChannels;
-                averageSignal = mean(cell2mat(selectedData),1);
-                obj.plotTbl.Data =  cellfun(@(x) x - averageSignal, obj.plotTbl.Data, 'UniformOutput', false);
-                disp (['User selected channels for average refrence calculation:',strjoin(selectedChannels, ', ')])
+                if separateHemi.Value == 1
+                    leftIdx = selectedChannels(contains(selectedChannels,'L'));
+                    rightIdx = selectedChannels(contains(selectedChannels,'R'));
+                    leftSelected = find(ismember(obj.plotTbl.ChName, leftIdx));
+                    rightSelected = find(ismember(obj.plotTbl.ChName, rightIdx));
+                    if ~isempty(leftSelected)
+                        leftData = cell2mat(obj.plotTbl.Data(leftSelected));
+                        averageLeft = mean(leftData,1);
+                        obj.plotTbl.Data(contains(obj.plotTbl.ChName,'L')) =  cellfun(@(x) x - averageLeft, obj.plotTbl.Data(contains(obj.plotTbl.ChName,'L')), 'UniformOutput', false);
+                    end
+                    if ~isempty(rightSelected)
+                        rightData = cell2mat(obj.plotTbl.Data(rightSelected));
+                        averageRight = mean(rightData,1);
+                        obj.plotTbl.Data(contains(obj.plotTbl.ChName,'R')) =  cellfun(@(x) x - averageRight, obj.plotTbl.Data(contains(obj.plotTbl.ChName,'R')), 'UniformOutput', false);
+                    end
+                else
+                    averageSignal = mean(cell2mat(selectedData),1);
+                    obj.plotTbl.Data =  cellfun(@(x) x - averageSignal, obj.plotTbl.Data, 'UniformOutput', false);
+                    disp (['User selected channels for average refrence calculation:',strjoin(selectedChannels, ', ')])
+                end
                 obj.sigUpdate;
-                close(dialogAveRef);  % close windows
+                fig_averageRef.CloseRequestFcn = '';
+                delete(fig_averageRef);  % close windows
             end
-
             % If Cancel button pushed
             function cancelCallback(~,~)
-                delete(dialogAveRef); % close windows
+                obj.avgRefTF = false;
+                close(fig_averageRef); % close windows
+                disp('Average Reference Mode is OFF!!')
             end
-            
-
+            % Cancel function for x button
+            function cancelClose(f)
+                obj.avgRefTF = false;
+                delete(f);
+                disp('Average Reference Mode is OFF!!')
+            end
         end
         %% Zoom
         function obj = horizontalZoomIn(obj)
