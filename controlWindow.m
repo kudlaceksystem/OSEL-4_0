@@ -2020,7 +2020,10 @@ end
 
 
 %% TO DO
+%% Bugs
+% In the Label Window, labels do not get correct color (remain white)
 %% Related to function
+% Add a toggle if labels should be saved in mat or xls or xlsx? What is the advantage of xlsx?
 % Show signal info (most importantly Fs)
 % Why does video stop when zooming? In video, whichFrame seems to be ok, definitely not higher than than the number of frames.
 % Make colorful also the exported xlsx
