@@ -223,6 +223,7 @@ classdef label < handle
             obj.lblDefSelection = evt.Indices; % To keep track of selected cells in R2019b. https://www.mathworks.com/matlabcentral/answers/548586-programmatical-access-to-current-selection-in-uitable-under-uifigure
         end
         function cbUitLblSelShow(obj, ~, evt) % Select which labels to show
+'cbUitLblSelShow happening now'
             if isempty(evt.Indices)
                 return
             end
@@ -475,17 +476,23 @@ classdef label < handle
             end
             
             % Sort channels
-            oldSigInfo = obj.sigInfo
+            oldSigInfo = obj.sigInfo;
+% oldSigInfo_ = oldSigInfo
             obj.updateSigInfo;
-            objSigInfo_ = obj.sigInfo
+% objSigInfo_ = obj.sigInfo
             for kch = 1 : height(oldSigInfo)
                 indSubject = endsWith(obj.sigInfo.Subject, oldSigInfo.Subject(kch));
+% indSubject_ = indSubject
                 chnm = strsplit(oldSigInfo.ChName(kch), '-');
                 chnm = chnm{1};
-                indChannel = startsWith(obj.sigInfo.ChName, chnm);
+                ChNameFirstPart = cellfun(@(y)y(1), arrayfun(@(x)strsplit(x, '-'), obj.sigInfo.ChName, 'UniformOutput', false));
+                % indChannel = startsWith(obj.sigInfo.ChName, chnm);
+                indChannel = strcmp(ChNameFirstPart, chnm);
+% indSubject_ = indSubject
+% indChannel_ = indChannel
                 newChannel = find(indSubject & indChannel);
-newChannel_ = newChannel
-Channel_ = obj.lblSet.Channel
+% newChannel_ = newChannel
+% Channel_ = obj.lblSet.Channel
                 obj.lblSet.Channel(obj.lblSet.Channel == kch) = newChannel;
                 % pause
             end

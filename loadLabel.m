@@ -8,6 +8,7 @@ function [sigInfo, lblDef, lblSet] = loadLabel(filepn)
     switch e
         case 'lbl3.mat'
             load(filepn, 'sigInfo', 'lblDef', 'lblSet');
+loadLabel_lblSet_ = lblSet
             vrNm = lblSet.Properties.VariableNames;
             for k = 1 : length(vrNm)
                 if isa(lblSet.(vrNm{k}), 'categorical')
