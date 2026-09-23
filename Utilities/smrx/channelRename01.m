@@ -1,0 +1,279 @@
+function channelRename01
+    oldName = 'RhdD-16';
+    newName = 'C-D2';
+    
+%     oldName = 'D14';
+%     newName = 'FR-D';
+    
+%     oldName = 'D0';
+%     newName = 'L-D-6';
+    
+%     oldName = 'D16';
+%     newName = 'C-D';
+    
+%     oldName = 'D30';
+%     newName = 'PL-D';
+    
+%     oldName = 'C1-5';
+%     newName = 'L-C-5';
+    
+%     oldName = 'C14';
+%     newName = 'C-C';
+    
+%     oldName = 'B1-2';
+%     newName = 'L-B-2';
+    
+%     oldName = 'B14';
+%     newName = 'C-B';
+    
+%     oldName = 'A1-9';
+%     newName = 'FL-A';
+    
+%     oldName = 'A14';
+%     newName = 'FR-A';
+    
+%     oldName = 'A0';
+%     newName = 'L-A-9';
+    
+%     oldName = 'A16';
+%     newName = 'C-A';
+    
+%     oldName = 'A30';
+%     newName = 'PL-A';
+    
+    filepn = getFilepn('Browse smrx files', 'on');
+%     savep = getSavep('Where to save new smrx files');
+%     savep = '\\neurodata\Lab Neurophysiology root\EEG conversion\'
+    if isnumeric(filepn)
+        return
+    end
+    if isempty(getenv('CEDS64ML'))
+        setenv('CEDS64ML', [cd, '\CEDMATLAB\CEDS64ML']);
+    end
+    
+    % Load the library
+    if isempty(getenv('CEDS64ML'))
+        setenv('CEDS64ML', [cd, '\CEDMATLAB\CEDS64ML']);
+    end
+    cedpath = getenv('CEDS64ML');
+    addpath(cedpath);
+
+    CEDS64LoadLib(cedpath);
+    
+    % Run the executive function
+    chRnm(filepn, oldName, newName)
+    
+    % Display finished
+    disp('channelRename01 finished')
+end
+function chRnm(filepn, oldName, newName)
+    for kf = 1 : length(filepn)
+disp(['File ', num2str(kf), '/', num2str(length(filepn)), ' (', filepn{kf}, ')'])
+        fhand = CEDS64Open(filepn{kf}, 0);
+        for kch = 1 : 50
+            [iOK, chnm] = CEDS64ChanTitle(fhand, kch);
+            if iOK ~= 0; continue; end
+            if strcmp(chnm, oldName)
+                iOK = CEDS64ChanTitle(fhand, kch, newName);
+                if iOK ~= 0; error(['_jk CEDS64ChanTitle could not change name of channel ', num2str(kch), 10, 'in file ', filepn{kf}, 10, 'with handle fhand = ', num2str(fhand),'. iOK = ', num2str(iOK)]); end
+                break
+            end
+        end
+        iOK = CEDS64Close(fhand);
+        if iOK ~= 0; error(['_jk CEDS64Close could not close file ', filepn{kf}, 10, 'with handle fhand = ', num2str(fhand),'. iOK = ', num2str(iOK)]); end
+    end
+end
+% % % function [sigT, dateS, subjNm] = loadSmrx(filepn)
+% % %     % Jan Emsik Chvojka 2020
+% % %     % Modified by Jan Kudlacek 2022
+% % %     
+% % %     if isempty(getenv('CEDS64ML'))
+% % %         setenv('CEDS64ML', [cd, '\CEDMATLAB\CEDS64ML']);
+% % %     end
+% % %     cedpath = getenv('CEDS64ML');
+% % %     addpath(cedpath);
+% % % 
+% % %     CEDS64LoadLib(cedpath);
+% % % 
+% % %     fhand = CEDS64Open(filepn);
+% % %     if (fhand <= 0);  warning(['_jk Could not load ', filepn]); CEDS64ErrorMessage(fhand); unloadlibrary ceds64int; return; end
+% % % 
+% % %     % Get channel names and number of channels
+% % %     nch = [];
+% % %     chnm = [];
+% % %     chn = [];
+% % %     for kch = 1 : 1000
+% % %         [iOK, nm] = CEDS64ChanTitle(fhand, kch);
+% % %         if iOK == 0
+% % %             nch(end+1) = kch; %#ok<AGROW>
+% % %             chnm{end+1} = nm; %#ok<AGROW>
+% % %             chn(end+1) = kch;
+% % %         end
+% % %     end
+% % %     
+% % %     % Keep only ADC channels
+% % %     for k = 1 : length(nch)
+% % %         typ(k) = CEDS64ChanType(fhand, nch(k)); %#ok<AGROW> % Get channels type (ADC, Marker, etc.)
+% % %     end
+% % %     chnm = chnm(typ == 1);
+% % %     chn = chn(typ == 1);
+% % %     
+% % %     % Find what type of recording it is
+% % %     recType = 'general';
+% % %     for k = 1 : length(chnm)
+% % %         r = regexpi(chnm{k}, '\w\w?-[ABCD]-\w+', 'start');
+% % %         if r == 1
+% % %             recType = 'prahaMotolChronic';
+% % %             break
+% % %         end
+% % %     end
+% % %     
+% % %     % Run appropriate nested function
+% % %     switch recType
+% % %         case 'prahaMotolChronic'
+% % %             loadPrahaMotolChronic;
+% % %         case 'general'
+% % %             loadGeneral;
+% % %     end
+% % %     
+% % %     % Nested functions
+% % %     function loadPrahaMotolChronic
+% % %         % Process the channels
+% % %         for kch2 = 1 : length(chnm)
+% % %             disp(['Loading channel ', num2str(kch2)])
+% % %             str = chnm{kch2};
+% % %             r = regexpi(str, '\w\w?-[ABCD]-\w+', 'match');
+% % %             if ~isempty(r)
+% % %                 s = strsplit(r{1}, '-');
+% % %                 ChName = string(str);
+% % %                 RecPosition = string(s{2});
+% % %                 Subject = string(['recID_', s{3}]);
+% % %             else
+% % %                 r = regexpi(str, '\w\w?-[ABCD]', 'match');
+% % %                 if ~isempty(r)
+% % %                     s = strsplit(r{1}, '-');
+% % %                     ChName = string(str);
+% % %                     RecPosition = string(s{2});
+% % %                     Subject = ""; % Will be filled in later
+% % %                 elseif startsWith(str, 'Rhd')
+% % %                     ChName = string(str);
+% % %                     RecPosition = string(str(4));
+% % %                     Subject = ""; % Will be filled in later
+% % %                 else
+% % %                     ChName = string(str);
+% % %                     RecPosition = "";
+% % %                     Subject = ""; % Will not be filled in since RecPosition is empty as well
+% % %                 end
+% % %             end
+% % %             [durS] = CEDS64TicksToSecs(fhand, CEDS64ChanMaxTime(fhand, chn(kch2)));
+% % % %             [~, td]  = CEDS64TimeDate(fhand);
+% % % %             SigStart = datetime(fliplr(td(2 : end)));
+% % %             [~, filen, ~] = fileparts(filepn);
+% % % %             ss = strsplit(filen, '-');
+% % % %             SigStart = datetime(ss{2}, 'InputFormat', 'yyMMdd_HHmmss');
+% % %             ss = strsplit(filen, '  ');
+% % %             SigStart = datetime(ss{2}, 'InputFormat', 'dd MM yy_HH mm ss');
+% % %             SigEnd = datetime(datenum(SigStart(end)) + durS/3600/24, 'ConvertFrom', 'datenum');
+% % %             maxpoints = CEDS64MaxTime(fhand) + 2;
+% % %             [iRead, shortvals, ~] = CEDS64ReadWaveS(fhand, chn(kch2), maxpoints, 0);
+% % %             y = single(shortvals);
+% % %             [~, scale] = CEDS64ChanScale(fhand, chn(kch2));
+% % %             [~, offset] = CEDS64ChanOffset(fhand, chn(kch2));
+% % %             Data = {single(y*scale/6553.6 + offset)'};
+% % %             Fs = double(CEDS64IdealRate(fhand, chn(kch2)));
+% % %             if Fs == 0 || iRead < 0
+% % %                 Fs = NaN;
+% % %                 Data = {NaN};
+% % %             end
+% % %             sigTbl(kch2, :) = table(Subject, ChName, SigStart, SigEnd, Fs, Data, RecPosition);
+% % %         end
+% % %         
+% % %         % Pair subject names with recording positions
+% % %         subjects = [];
+% % %         for kch2 = 1 : size(sigTbl, 1)
+% % %             if ~(sigTbl.Subject(kch2) == "")
+% % %                 subjects{end+1, 1} = sigTbl.Subject(kch2); %#ok<AGROW>
+% % %                 subjects{end, 2} = sigTbl.RecPosition(kch2);
+% % %             end
+% % %         end
+% % % %         subjects
+% % % %         sigTbl.RecPosition
+% % %         % Fill in subject names
+% % %         for kch2 = 1 : size(sigTbl, 1)
+% % %             if ~(sigTbl.RecPosition(kch2) == "")
+% % %                 if ~isempty(subjects([subjects{:, 2}] == sigTbl.RecPosition(kch2), 1))
+% % %                     sigTbl.Subject(kch2) = subjects([subjects{:, 2}] == sigTbl.RecPosition(kch2), 1);
+% % %                 end
+% % %             end
+% % %         end
+% % %         
+% % %         sigTbl = sigTbl(~isnan(sigTbl.Fs), :);
+% % %         unloadlibrary ceds64int;
+% % %         
+% % %         %% Sort out
+% % %         for ks = 1 : size(subjects, 1)
+% % %             sigT{ks} = sigTbl(sigTbl.Subject == subjects{ks, 1}, :);
+% % %             
+% % %             % Resample to 250 Hz
+% % %             for kch = 1 : size(sigT{ks}, 1)
+% % %                 s = single(resample(double(sigT{ks}.Data{kch}), 250, sigT{ks}.Fs(kch)));
+% % %                 sigT{ks}.Data(kch, 1) = {s};
+% % %                 sigT{ks}.Fs(kch, 1) = 250;
+% % %             end
+% % %             clear s
+% % %             
+% % % %             % Average reference
+% % % %             eegChannelIdx = find(startsWith(sigT{ks}.ChName, {'FL', 'FR', 'L', 'C', 'PL'}));
+% % % %             s = cell2mat(sigT{ks}.Data(eegChannelIdx));
+% % % %             s = s - ones(size(s, 1), 1)*mean(s);
+% % % %             for ke = 1 : length(eegChannelIdx)
+% % % %                 sigT{ks}.Data(eegChannelIdx(ke)) = {s(ke, :)};
+% % % %             end
+% % % %             clear s
+% % %             
+% % %             if all((sigTbl.SigStart - sigTbl.SigStart(1)) < 0.001)
+% % %                 dateStr = datestr(sigTbl.SigStart(1), 'yymmdd_HHMMSS');
+% % %             end
+% % %             dateS{ks} = dateStr;
+% % %             subjNm{ks} = subjects{ks, 1};
+% % %         end
+% % %     end
+% % % end
+
+function filepn = getFilepn(prompt, multisel)
+    if exist('loadpath.mat', 'file')
+        load('loadpath.mat', 'loadpath'); % Second argument: which variable from the file should be loaded
+    else
+        loadpath = '';
+    end
+    [fn, fp] = uigetfile([loadpath, '\*.smrx'], prompt, 'MultiSelect', multisel); % File names, file path
+    if isa(fn, 'double')
+        filepn = [];
+        return
+    end
+    % If the user selected only one file, it is returned as a char array. Let's put it in a cell for consistency.
+    if ~iscell(fn)
+        filen{1} = fn;
+    else
+        filen = fn;
+    end
+    filep = fp;
+    filepn = fullfile(filep, filen);
+    loadpath = filep;
+    save('loadpath.mat', 'loadpath')
+end
+% % % function savep = getSavep(prompt)
+% % %     if exist('loadpath.mat', 'file')
+% % %         load('loadpath.mat', 'loadpath'); % Second argument: which variable from the file should be loaded
+% % %     else
+% % %         loadpath = '';
+% % %     end
+% % %     [fp] = uigetdir([loadpath], prompt); % File names, file path
+% % %     if isa(fp, 'double')
+% % %         savep = [];
+% % %         return
+% % %     end
+% % %     savep = fp;
+% % %     loadpath = savep;
+% % %     save('loadpath.mat', 'loadpath')
+% % % end
