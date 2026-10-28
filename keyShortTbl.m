@@ -1,6 +1,6 @@
 function keyShort = keyShortTbl
 commandShortcut = {...
-    'prevNonEmptyLabelFile','b',            'control'; % Buttons in control window, keep these together and in the order of the buttons
+    'prevNonEmptyLabelFile','b',            'control'; % Navigation commands (the buttons in control window take their commands from an explicit list in controlWindow.createWindow)
     'prevSigWNonEmptyLabel','b',            '';
     'saveLblPrevFile',      'z',            '';
     'jumpToStart',          'home',         '';
@@ -45,6 +45,7 @@ commandShortcut = {...
     'labelSave',            'l',            '';
     'labelSave',            's',            'control';
     'editCurrentFileFocus', 'f6',           '';
+    'editCurrentChunkFocus','f7',           '';
     'toggleBipolar',        'f2',           '';
     'connNextWindow',       'k',            '';
     'connPrevWindow',       'k',            'control';

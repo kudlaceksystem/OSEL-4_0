@@ -2,7 +2,8 @@ classdef signal < handle
     properties
         filepn % Files' paths and names
 
-        sigTbl % Table with loaded signals.       Subject        ChName       SigStart       SigEnd      Fs           Data       
+        sigTbl % Table with loaded signals.       Subject        ChName       SigStart       SigEnd      Fs           Data
+        chunkTbl % Chunks of the current file (from loadSignal). Chunk, SigStart, SigEnd. Whole file is from SigStart(1) to SigEnd(end)
         plotTbl % Table containing only signals which will be plotted
         bipolarTbl % Table containing bipolar montage of the channels (substracted Neighbouring channels from same region)
         sigLenS % Duration of the longest channel (normally, all channels should have the same duration)
@@ -61,7 +62,8 @@ classdef signal < handle
             end
             figure(obj.h.f)
             delete(obj.h.panChNm.Children); delete(obj.h.panSig.Children); delete(obj.h.panTime.Children);
-            obj.sigTbl = loadSignal(obj.filepn{obj.controlObj.currentFile});
+            [obj.sigTbl, obj.chunkTbl] = loadSignal(obj.filepn{obj.controlObj.currentFile}, obj.controlObj.currentChunk);
+            obj.controlObj.currentChunk = min(max(obj.controlObj.currentChunk, 1), height(obj.chunkTbl)); % Resolves Inf (last chunk); files without chunks have only chunk 1
             obj.sigLenS = datenum(max(obj.sigTbl.SigEnd) - min(obj.sigTbl.SigStart))*3600*24;
             obj.controlObj.plotLimS(2) = min(obj.controlObj.plotLimS(2), obj.sigLenS);
             if obj.controlObj.showWholeFile
@@ -1269,6 +1271,14 @@ isemptyConnObj_ = isempty(obj.controlObj.connObj)
             delete(obj.h.f);
         end
         
+        function k = chunkOfTime(obj, t)
+            % Number of the chunk containing datetime t. Time in a gap between chunks belongs to the preceding chunk.
+            k = find(obj.chunkTbl.SigStart <= t, 1, 'last');
+            if isempty(k)
+                k = 1;
+            end
+        end
+
         function tbl = getCurrentTbl(obj)
             % % % if obj.bipolarTblTF
                 tbl = obj.plotTbl;

@@ -32,7 +32,7 @@ loadLabel_lblSet_ = lblSet
                 warndlg(promptStr)
             end
             % Check if all the labels fall within SigStart and SigEnd
-            whichAreOutside = find(~all(lblSet.Start > (sigInfo.SigStart(1) - seconds(1)) & lblSet.End < (sigInfo.SigEnd(1) + seconds(1))));
+            whichAreOutside = find(~(lblSet.Start > (sigInfo.SigStart(1) - seconds(1)) & lblSet.End < (sigInfo.SigEnd(1) + seconds(1))));
             if ~isempty(whichAreOutside)
                 sigInfo
                 lblSet

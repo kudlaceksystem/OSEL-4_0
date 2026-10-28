@@ -22,6 +22,7 @@ classdef controlWindow < handle
         playSpeed % 1 = normal speed
 
         currentFile % Number of the currently loaded signal file
+        currentChunk % Number of the currently loaded chunk of the current file (e.g. ADICHT record). 1 for files without chunks.
 
         EEGFullData
         EEGSegmentData
@@ -39,6 +40,7 @@ classdef controlWindow < handle
             obj.stg = stgs; % Get settings
             obj.key = keyShortTbl; % Get keyboard shortcuts
             obj.currentFile = 1;
+            obj.currentChunk = 1;
             obj.modifier = '';
 
             % Create the figure with all the buttons etc.
@@ -77,6 +79,10 @@ classdef controlWindow < handle
 
         %% Callback for menu (implements the functionality already)
         function cbMenu(obj, src, ~) % Callback for menu
+            if startsWith(src.Tag, 'videoLoad') && ~isempty(obj.signalObj) && height(obj.signalObj.chunkTbl) > 1 % Video is not synchronized with chunks yet
+                warndlg('Video is not yet supported for signal files with more than one chunk.')
+                return
+            end
             switch src.Tag
                 case 'signalLoad' % Possibly move the code to a function
                     % First ask user for the file path and names. If the user changes their mind during the uigetfile and selects nothing,
@@ -91,6 +97,7 @@ classdef controlWindow < handle
                         obj.signalObj(end) = [];
                     end
                     obj.currentFile = 1;
+                    obj.currentChunk = 1;
                     obj.plotLimS = obj.stg.cDefaultPlotLimS; % Default (usually 0 to 10 seconds or so)
                     obj.nowS = obj.stg.cDefaultPlotLimS(1); % Default (usually 0)
                     obj.signalObj = signal(obj, filepn); % Create the signal object. Only creates figure, does not plot signals.
@@ -354,6 +361,7 @@ classdef controlWindow < handle
                     obj.labelObj.filep = flp;
                     obj.labelObj.currentFilen = fln;
                     [obj.labelObj.sigInfo, obj.labelObj.lblDef, obj.labelObj.lblSet] = loadLabel(filepn{1});
+                    obj.labelObj.updateSigInfo; % sigInfo in the file describes the whole signal file, we need the current chunk
                     if length(obj.labelObj.lblClassesToShow) ~= size(obj.labelObj.lblDef, 1)
                         obj.labelObj.lblClassesToShow = true(size(obj.labelObj.lblDef, 1), 1);
                         obj.labelObj.lblClassesToEdit = false(size(obj.labelObj.lblDef, 1), 1);
@@ -368,7 +376,7 @@ classdef controlWindow < handle
                     obj.labelObj.createLblFig;
                     obj.labelObj.getFilep;
                 case 'labelSave'
-                    obj.labelObj.labelSave;
+                    obj.labelObj.lblSave;
                 case 'labelSaveAs'
                     load('loadpath.mat', 'loadpath')
                     [filen, filep] = uiputfile([loadpath, '*.mat'], 'Save As');
@@ -377,7 +385,7 @@ classdef controlWindow < handle
                     end
                     %                     loadpath = filep;
                     %                     save('loadpath.mat', 'loadpath')
-                    sigInfo = obj.labelObj.sigInfo;
+                    sigInfo = obj.labelObj.fileSigInfo; % Start and end of the whole file, not only the current chunk
                     lblDef = obj.labelObj.lblDef;
                     lblSet = obj.labelObj.lblSet;
                     save(fullfile(filep, filen), 'sigInfo', 'lblDef', 'lblSet')
@@ -386,7 +394,7 @@ classdef controlWindow < handle
                     [filen, filep] = uiputfile([loadpath, '*.xlsx']);
                     %                     loadpath = filep;
                     %                     save('loadpath.mat', 'loadpath')
-                    writetable(obj.labelObj.sigInfo, fullfile(filep, filen), 'Sheet', 1);
+                    writetable(obj.labelObj.fileSigInfo, fullfile(filep, filen), 'Sheet', 1);
                     writetable(obj.labelObj.lblDef, fullfile(filep, filen), 'Sheet', 2);
                     writetable(obj.labelObj.lblSet, fullfile(filep, filen), 'Sheet', 3);
             end
@@ -642,15 +650,7 @@ classdef controlWindow < handle
                 obj.labelObj = obj.labelObj.lblSave;
                 pause(0.5)
             end
-            if obj.currentFile > 1
-                stop(obj.tmr)
-                obj.plotLimS = [0, obj.plotLenS]; % Keep same zoom
-                obj.nowS = obj.plotLimS(1);
-                obj.currentFile = obj.currentFile - 1;
-                obj.fileUpdate;
-            else
-                disp(['_jk currentFile = ', num2str(obj.currentFile), '/', num2str(length(obj.signalObj.filepn))])
-            end
+            obj.stepChunk(-1); % Previous chunk or the last chunk of the previous file
             obj.h.f.Interruptible = 'on';
             obj.signalObj.h.f.Interruptible = 'on';
             drawnow
@@ -660,27 +660,11 @@ classdef controlWindow < handle
             if obj.callbackRunning
                 return
             end
-            if obj.currentFile > 1
-                stop(obj.tmr)
-                obj.plotLimS = [0, obj.plotLenS]; % Keep same zoom
-                obj.nowS = obj.plotLimS(1);
-                obj.currentFile = obj.currentFile - 1;
-                obj.fileUpdate;
-            else
-                disp(['_jk currentFile = ', num2str(obj.currentFile), '/', num2str(length(obj.signalObj.filepn))])
-            end
+            obj.stepChunk(-1); % Previous chunk or the last chunk of the previous file
         end
         function obj = whichIsCreatedPrevFile(obj)
             obj.labelObj = obj.labelObj.lblSave;
-            if obj.currentFile > 1
-                stop(obj.tmr)
-                obj.plotLimS = [0, obj.plotLenS]; % Keep same zoom
-                obj.nowS = obj.plotLimS(1);
-                obj.currentFile = obj.currentFile - 1;
-                obj.fileUpdate;
-            else
-                disp(['_jk currentFile = ', num2str(obj.currentFile), '/', num2str(length(obj.signalObj.filepn))])
-            end
+            obj.stepChunk(-1); % Previous chunk or the last chunk of the previous file
         end
         function obj = jumpToStart(obj)
             obj.plotLimS = [0 obj.plotLenS];
@@ -772,15 +756,7 @@ classdef controlWindow < handle
             if ~isempty(obj.labelObj) % First save current label
                 obj.labelObj = obj.labelObj.lblSave;
             end
-            if obj.currentFile < length(obj.signalObj.filepn)
-                stop(obj.tmr)
-                obj.plotLimS = [0, obj.plotLenS]; % Keep same zoom
-                obj.nowS = obj.plotLimS(1);
-                obj.currentFile = obj.currentFile + 1;
-                obj.fileUpdate;
-            else
-                disp(['_jk currentFile = ', num2str(obj.currentFile), '/', num2str(length(obj.signalObj.filepn))])
-            end
+            obj.stepChunk(1); % Next chunk or the first chunk of the next file
             obj.h.f.Interruptible = 'on';
             obj.signalObj.h.f.Interruptible = 'on';
             drawnow
@@ -790,14 +766,33 @@ classdef controlWindow < handle
             if obj.callbackRunning
                 return
             end
-            if obj.currentFile < length(obj.signalObj.filepn)
-                stop(obj.tmr)
-                obj.plotLimS = [0, obj.plotLenS]; % Keep same zoom
-                obj.nowS = obj.plotLimS(1);
-                obj.currentFile = obj.currentFile + 1;
-                obj.fileUpdate;
+            obj.stepChunk(1); % Next chunk or the first chunk of the next file
+        end
+        function obj = goTo(obj, kFile, kChunk)
+            % Go to file kFile and its chunk kChunk (kChunk = Inf goes to the last chunk). Keeps the zoom.
+            stop(obj.tmr)
+            obj.plotLimS = [0, obj.plotLenS]; % Keep same zoom
+            obj.nowS = obj.plotLimS(1);
+            obj.currentFile = kFile;
+            obj.currentChunk = kChunk;
+            obj.fileUpdate;
+        end
+        function obj = stepChunk(obj, step)
+            % Chunks of all files form one sequence. step = 1 goes to the next chunk (or to the first chunk of the next file),
+            % step = -1 to the previous chunk (or to the last chunk of the previous file). Files without chunks have one chunk.
+            % This is what nextFile, prevFile, saveLblNextFile and saveLblPrevFile do.
+            nChunks = height(obj.signalObj.chunkTbl);
+            if step > 0 && obj.currentChunk < nChunks
+                obj.goTo(obj.currentFile, obj.currentChunk + 1);
+            elseif step > 0 && obj.currentFile < length(obj.signalObj.filepn)
+                obj.goTo(obj.currentFile + 1, 1);
+            elseif step < 0 && obj.currentChunk > 1
+                obj.goTo(obj.currentFile, obj.currentChunk - 1);
+            elseif step < 0 && obj.currentFile > 1
+                obj.goTo(obj.currentFile - 1, Inf);
             else
-                disp(['_jk currentFile = ', num2str(obj.currentFile), '/', num2str(length(obj.signalObj.filepn))])
+                disp(['_jk currentFile = ', num2str(obj.currentFile), '/', num2str(length(obj.signalObj.filepn)),...
+                    ', currentChunk = ', num2str(obj.currentChunk), '/', num2str(nChunks)])
             end
         end
         function obj = autoPageForward(obj)
@@ -860,7 +855,11 @@ classdef controlWindow < handle
                 [filepath,name,ext] = fileparts(obj.signalObj.filepn{obj.currentFile}); 
                 filepath = obj.destinationFolder;
                 obj.signalObj.filepn{obj.currentFile} = fullfile(filepath, [name ext]); % Update file list
-                nextFile(obj); 
+                if obj.currentFile < length(obj.signalObj.filepn) % The whole file was moved so go to the next file (not to the next chunk)
+                    obj.goTo(obj.currentFile + 1, 1);
+                else
+                    obj.fileUpdate;
+                end
                 disp('File successfully moved.');
             end
         end
@@ -887,15 +886,24 @@ classdef controlWindow < handle
                 return
             end
             if kf >= 1 && kf <= length(obj.signalObj.filepn)
-                % Reset everything
-                stop(obj.tmr)
-                obj.plotLimS = obj.stg.cDefaultPlotLimS;
-                obj.nowS = obj.plotLimS(1);
-                % Set current file
-                obj.currentFile = kf;
-                obj.fileUpdate;
+                obj.plotLimS = obj.stg.cDefaultPlotLimS; % Reset zoom
+                obj.goTo(kf, 1);
             else
                 disp(['_jk Requested file number ', num2str(kf), ' but total number of files is ', num2str(length(obj.signalObj.filepn))])
+            end
+        end
+        function obj = editCurrentChunk(obj)
+            % Save current label
+            if ~isempty(obj.labelObj) && obj.automaticLabelSaving % First save current label
+                obj.labelObj = obj.labelObj.lblSave;
+            end
+            kc = str2double(obj.h.eCurrentChunk.String); % Requested chunk number. Try to convert to double
+            nChunks = height(obj.signalObj.chunkTbl);
+            if ~isnan(kc) && kc >= 1 && kc <= nChunks && kc == round(kc)
+                obj.goTo(obj.currentFile, kc);
+            else
+                disp(['_jk Requested chunk ', obj.h.eCurrentChunk.String, ' but total number of chunks is ', num2str(nChunks)])
+                obj.h.eCurrentChunk.String = num2str(obj.currentChunk);
             end
         end
         function obj = editPlaySpeed(obj)
@@ -1222,11 +1230,7 @@ kf_ = kf
                     end
                 end
                 if ~isnan(kfToLoad)
-                    stop(obj.tmr)
-                    obj.currentFile = kfToLoad;
-                    obj.plotLimS = [0, obj.plotLenS];
-                    obj.nowS = obj.plotLimS(1);
-                    obj.fileUpdate;
+                    obj.goTo(kfToLoad, 1);
                     sl = obj.labelObj.lblSet;
                     sls = sortrows(sl, 'Start'); % Sorted shown labels
                     idx = find(obj.labelObj.lblSet.ID == sls.ID(1));
@@ -1284,13 +1288,7 @@ kf_ = kf
                 if isempty(kf)
                     return
                 end
-                stop(obj.tmr)
-                obj.currentFile = kf;
-                obj.fileUpdate;
-
-                % Reset everything
-                obj.plotLimS = [0, obj.plotLenS];
-                obj.nowS = obj.plotLimS(1);
+                obj.goTo(kf, 1);
                 sl = obj.labelObj.lblSet(obj.labelObj.shownLabels, :); % Table of shown labels
                 sls = sortrows(sl, 'Start'); % Sorted shown labels
                 idx = find(obj.labelObj.lblSet.ID == sls.ID(1));
@@ -1305,13 +1303,7 @@ kf_ = kf
             if isempty(kf)
                 return
             end
-            % Reset everything
-            stop(obj.tmr)
-            obj.plotLimS = [0, obj.plotLenS];
-            obj.nowS = obj.plotLimS(1);
-            obj.currentFile = kf;
-            % Set current file
-            obj.fileUpdate;
+            obj.goTo(kf, 1);
             obj.labelObj.lblSetSelect(1, '');
         end
         function obj = cycleLabelClassToEdit(obj)
@@ -1319,6 +1311,9 @@ kf_ = kf
         end
         function obj = editCurrentFileFocus(obj)
             uicontrol(obj.h.eCurrentFile);
+        end
+        function obj = editCurrentChunkFocus(obj)
+            uicontrol(obj.h.eCurrentChunk);
         end
         function cbResize(obj, hf, ~)
             obj.h.panNav.Position(2) = hf.Position(4) - obj.h.panNav.Position(4);
@@ -1443,12 +1438,25 @@ kf_ = kf
             obj.signalObj.fileUpdate;
             obj.h.eSignalpn.String = obj.signalObj.filepn(obj.currentFile);
             obj.h.tSamplingFreq.String = ['Fsₘₐₓ=', num2str(max(obj.signalObj.plotTbl.Fs)), 'Hz'];
+            % Chunk (signal.fileUpdate has resolved obj.currentChunk)
+            nChunks = height(obj.signalObj.chunkTbl);
+            obj.h.eCurrentChunk.String = num2str(obj.currentChunk);
+            obj.h.tTotalChunks.String = ['/', num2str(nChunks)];
+            if nChunks > 1
+                obj.h.eCurrentChunk.Enable = 'on';
+            else
+                obj.h.eCurrentChunk.Enable = 'off';
+            end
             % Load new label
             if ~isempty(obj.labelObj)
                 obj.labelObj = obj.labelObj.fileUpdate; % Load label file (if it exists)
             end
 
             % Video
+            if ~isempty(obj.videoShowObj) && nChunks > 1 % Video is not synchronized with chunks yet
+                warndlg('Video is not yet supported for signal files with more than one chunk. Video was closed.')
+                delete(obj.videoShowObj) % Same as closing the video window, deletes the video objects as well
+            end
             if ~isempty(obj.videoObj)
                 for k = 1 : length(obj.videoObj)
                     obj.videoObj(k).fileUpdate;
@@ -1549,14 +1557,15 @@ kf_ = kf
             obj.h.panNav = uipanel('Units', 'pixels', 'Visible', 'on', 'BorderType', 'line',...
                 'Position', obj.stg.cPanButtPos);
             buttText = {'L <', '|<<', '|<', '<<', '<', '||>', '[]', '>', '>>', '>|', '>>|', '> L'}; % Will appear on the buttons in the GUI
-            subsCommand = find(obj.key.Command == "prevNonEmptyLabelFile"); % Subscript into keyShortTbl of given command
-            buttTag = obj.key.Command(subsCommand : subsCommand + 12 - 1); % These 10 commands must be kept together in the keyShortTbl.m
+            buttTag = {'prevNonEmptyLabelFile', 'saveLblPrevFile', 'jumpToStart', 'pageBackward', 'backward', 'playPause', 'stop',...
+                'forward', 'pageForward', 'jumpToEnd', 'saveLblNextFile', 'nextNonEmptyLabelFile'}; % Commands of the buttons (functions in this class), one for each buttText
             for k = 1 : length(buttText)
                 % Generate tooltips. They contain the name of the function (literally) and keyboard shortcut.
-                if obj.key.Modifier(k) == ""
-                    tooltipStr = obj.key.Command(k) + ", " + obj.key.Shortcut(k); % Note that strings are, unlike char arrays, concatenated using +
+                subsCommand = find(obj.key.Command == buttTag{k}, 1); % Subscript into keyShortTbl of given command
+                if obj.key.Modifier(subsCommand) == ""
+                    tooltipStr = obj.key.Command(subsCommand) + ", " + obj.key.Shortcut(subsCommand); % Note that strings are, unlike char arrays, concatenated using +
                 else
-                    tooltipStr = obj.key.Command(k) + ", " + obj.key.Modifier(k) + "+" + obj.key.Shortcut(k);
+                    tooltipStr = obj.key.Command(subsCommand) + ", " + obj.key.Modifier(subsCommand) + "+" + obj.key.Shortcut(subsCommand);
                 end
                 % Generate buttons
                 obj.h.bNav(k) = uicontrol('Parent', obj.h.panNav, 'Style', 'pushbutton', 'Units', 'pixels',...
@@ -1776,12 +1785,36 @@ kf_ = kf
                 'Tag', 'textTotalFiles');
             obj.h.tSamplingFreq = uicontrol('Parent', obj.h.panFilepn, 'Style', 'text', 'Units', 'pixels', 'HorizontalAlignment', 'center',...
                 'Position', [...
-                obj.stg.cPanFileNumberPos(3),...
-                obj.stg.cPanFileNumberPos(4)*2/3,...
                 obj.stg.cPanFileNumberPos(3)*2,...
+                obj.stg.cPanFileNumberPos(4)*2/3,...
+                obj.stg.cPanFileNumberPos(3),...
                 obj.stg.cPanFileNumberPos(4)*1/3],...
                 'String', 'Fsₘₐₓ=N/A',...
                 'Tag', 'tSamplingFreq');
+            % Chunks (e.g. records of an ADICHT file), right of the current file, same layout
+            obj.h.tCurrentChunk = uicontrol('Parent', obj.h.panFilepn, 'Style', 'text', 'Units', 'pixels', 'HorizontalAlignment', 'right',...
+                'Position', [...
+                obj.stg.cPanFileNumberPos(3),...
+                obj.stg.cPanFileNumberPos(4)*2/3,...
+                obj.stg.cPanFileNumberPos(3)/2,...
+                obj.stg.cPanFileNumberPos(4)*1/3],...
+                'String', 'Current chunk:', 'Tag', 'textCurrentChunk');
+            obj.h.eCurrentChunk = uicontrol('Parent', obj.h.panFilepn, 'Style', 'edit', 'Units', 'pixels', 'HorizontalAlignment', 'right',...
+                'Position', [...
+                obj.stg.cPanFileNumberPos(3)*3/2,...
+                obj.stg.cPanFileNumberPos(4)*2/3,...
+                obj.stg.cPanFileNumberPos(3)/4,...
+                obj.stg.cPanFileNumberPos(4)*1/3],...
+                'String', '0', 'Callback', @obj.cbUicontrol,...
+                'Tag', 'editCurrentChunk', 'Enable', 'off');
+            obj.h.tTotalChunks = uicontrol('Parent', obj.h.panFilepn, 'Style', 'text', 'Units', 'pixels', 'HorizontalAlignment', 'left',...
+                'Position', [...
+                obj.stg.cPanFileNumberPos(3)*7/4,...
+                obj.stg.cPanFileNumberPos(4)*2/3,...
+                obj.stg.cPanFileNumberPos(3)/4,...
+                obj.stg.cPanFileNumberPos(4)*1/3],...
+                'String', '/0',...
+                'Tag', 'textTotalChunks');
             % % % % Add a display element below Fs.
             % % % obj.h.eSamplingFreq = uicontrol('Parent', obj.h.panFilepn, 'Style', 'edit', 'Units', 'pixels', 'HorizontalAlignment', 'left', ...
             % % %     'Position', [...

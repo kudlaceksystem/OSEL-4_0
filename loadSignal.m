@@ -1,4 +1,10 @@
-function sigTbl = loadSignal(filepn)
+function [sigTbl, chunkTbl] = loadSignal(filepn, kChunk)
+    % kChunk ... which chunk to load (Inf = last chunk). If empty or not given, the whole file is loaded.
+    % chunkTbl ... one row per chunk of the whole file (Chunk, SigStart, SigEnd). Formats which cannot be loaded in chunks
+    % ignore kChunk and return a one-row chunkTbl.
+    if nargin < 2
+        kChunk = [];
+    end
     [~, ~, ext] = fileparts(filepn);
     ext = lower(ext);
     %% Add your data format as a case in this switch and implement a loading method below
@@ -8,7 +14,11 @@ function sigTbl = loadSignal(filepn)
         bigFile = true;
     end
     if bigFile
-        hmsb = msgbox(['Loading ', filepn]);
+        if isempty(kChunk)
+            hmsb = msgbox(['Loading ', filepn]);
+        else
+            hmsb = msgbox(['Loading ', filepn, ', chunk ', num2str(kChunk)]);
+        end
     end
     switch ext
         case '.mat'
@@ -32,6 +42,14 @@ function sigTbl = loadSignal(filepn)
             sigTbl = loadRhd(filepn);
         case '.rhs'
             sigTbl = loadRhs(filepn);
+        case '.adicht'
+            [sigTbl, chunkTbl] = loadAdichtTbl(filepn, kChunk);
+    end
+    if ~exist('chunkTbl', 'var') % Format without chunks, the whole file is one chunk
+        Chunk = 1;
+        SigStart = min(sigTbl.SigStart);
+        SigEnd = max(sigTbl.SigEnd);
+        chunkTbl = table(Chunk, SigStart, SigEnd);
     end
     if bigFile
         close(hmsb); delete(hmsb);
@@ -690,7 +708,6 @@ function sigTbl = loadRhs(filepn)
         sigTbl(kch2, :) = table(Subject, ChName, SigStart, SigEnd, Fs, Data, RecPosition);
     end
 
-
 % % % sigTbl.Subject(2) = "JK007722a";
 % % % sigTbl.ChName(2) = "DF-A-JK007722a";
 
@@ -751,6 +768,116 @@ function sigTbl = loadRhs(filepn)
     % % % % sigTbl = sigTbl(~isnan(sigTbl.Fs), :);
     % % % %     unloadlibrary ceds64int;end
     disp('_jk Loaded RHS')
+end
+
+function [sigTbl, chunkTbl] = loadAdichtTbl(filepn, kChunk)
+% Loads all channels of a LabChart *.adicht file. Each record of the file
+% is one chunk.
+% kChunk empty ... all records are stitched into one continuous signal per
+%                  channel, positioned by their start times; gaps between
+%                  records are filled with NaN.
+% kChunk number ... only the record of chunk kChunk is loaded (Inf = last).
+% chunkTbl ... one row per record containing data (records without data on
+%              any channel are skipped, so Chunk and Record may differ).
+% Based on loadAdicht.m. Requires adi.m and +adi library by Jim Hokanson
+% (Windows x64 only).
+[~, filen, ~] = fileparts(filepn);
+f = adi.readFile(filepn);
+nch = f.n_channels;
+
+% Chunks (reads only metadata, no samples)
+nSamples = vertcat(f.channel_specs.n_samples); % Channels x records
+Record = find(any(nSamples > 0, 1))';
+if isempty(Record)
+    error(['_jk No data in ', filepn])
+end
+Chunk = (1 : numel(Record))';
+SigStart = datetime([f.records(Record).data_start]', 'ConvertFrom', 'datenum');
+SigEnd = SigStart + seconds([f.records(Record).duration]');
+chunkTbl = table(Chunk, Record, SigStart, SigEnd);
+
+% Records to load and the common start time of all channels
+if isempty(kChunk)
+    recsToLoad = chunkTbl.Record';
+    t0 = chunkTbl.SigStart(1);
+else
+    kChunk = min(max(kChunk, 1), height(chunkTbl));
+    recsToLoad = chunkTbl.Record(kChunk);
+    t0 = chunkTbl.SigStart(kChunk);
+end
+t0N = datenum(t0); %#ok<DATNM> % Record starts in adi are datenums
+tEndN = f.records(recsToLoad(end)).data_start + f.records(recsToLoad(end)).duration/24/3600;
+
+Subject = strings(nch, 1);
+ChName = strings(nch, 1);
+SigStart = NaT(nch, 1);
+SigEnd = NaT(nch, 1);
+Fs = zeros(nch, 1);
+Data = cell(nch, 1);
+for kch = 1 : nch
+    ch = f.channel_specs(kch);
+    disp(['Loading channel ', num2str(kch)])
+
+    % Channel name and subject (last token of the channel name, e.g. 'R Hc PV#1' -> 'PV#1')
+    ChName(kch) = string(ch.name);
+    tok = strsplit(strtrim(ch.name), ' ');
+    if numel(tok) > 1
+        Subject(kch) = string(tok{end});
+    else
+        ss = strsplit(filen, '-');
+        Subject(kch) = string(ss{1});
+    end
+
+    % Records containing data on this channel (in the whole file)
+    recs = find(ch.n_samples > 0);
+    if isempty(recs)
+        warning(['_jk Channel ', ch.name, ' contains no data in ', filepn])
+        fs = f.records(recsToLoad(1)).tick_fs;
+    else
+        fs = ch.fs(recs(1));
+        if any(abs(ch.fs(recs) - fs) > 1e-6*fs)
+            error(['_jk Sampling rate of channel ', ch.name, ' differs between records in ', filepn])
+        end
+        if numel(unique(ch.units(recs))) > 1
+            warning(['_jk Units of channel ', ch.name, ' differ between records in ', filepn])
+        end
+    end
+
+    % Prepare NaN vector spanning the records to load. All channels have the same length so that a chunk always
+    % contains all channels, even those without data in this record.
+    slen = round((tEndN - t0N)*24*3600*fs);
+    s = NaN(1, slen, 'single');
+
+    % Copy each record to its position
+    prevEnd = 0; % Number of samples filled so far
+    for kr = recsToLoad
+        if ch.n_samples(kr) == 0
+            continue % No data on this channel in this record, leave NaN
+        end
+        stemp = ch.getData(kr, 'return_object', false, 'leave_raw', true);
+        stemp = single(stemp(:)');
+        if kr ~= recs(1)
+            stemp(1 : min(10, numel(stemp))) = NaN; % First few samples of the Record are corrupted so replace them with NaN
+        end
+        subBe = round((f.records(kr).data_start - t0N)*24*3600*fs); % Offset into s
+        subBe = max(subBe, prevEnd); % Prevent overlap of records due to clock jitter
+        subEn = subBe + numel(stemp);
+        if subEn > numel(s)
+            s(numel(s) + 1 : subEn) = NaN; % Extend
+        end
+        s(subBe + 1 : subEn) = stemp;
+        prevEnd = subEn;
+    end
+
+    Fs(kch) = double(fs);
+    SigStart(kch) = t0;
+    SigEnd(kch) = SigStart(kch) + seconds(numel(s)/fs);
+    Data{kch} = s;
+end
+clear f ch % Closes the file
+
+% Create table
+sigTbl = table(Subject, ChName, SigStart, SigEnd, Fs, Data);
 end
 
 %% Intan functions

@@ -23,3 +23,10 @@ sfun.mex*
 # System files
 .DS_Store
 Thumbs.db
+
+# Internals
+INTERNAL.MD
+
+# Large testing files
+testing data/EEG/ADICHT-181221_220927.adicht
+testing data/Label/ADICHT-181221_220927-lbl3.mat

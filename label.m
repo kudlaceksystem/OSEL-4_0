@@ -512,9 +512,10 @@ classdef label < handle
                 warndlg('File contains labels from a different file than its name suggests.')
             end
 
-            % Check if all the labels fall within SigStart and SigEnd
-            if ~all(obj.lblSet.Start > obj.sigInfo.SigStart(1) - seconds(1) & obj.lblSet.End < obj.sigInfo.SigEnd(1) + seconds(1))
-                obj.sigInfo
+            % Check if all the labels fall within SigStart and SigEnd (of the whole file, labels from other chunks are fine)
+            fsi = obj.fileSigInfo;
+            if ~all(obj.lblSet.Start > fsi.SigStart(1) - seconds(1) & obj.lblSet.End < fsi.SigEnd(1) + seconds(1))
+                fsi
                 obj.lblSet
                 warndlg('File contains labels outside the signal start and end.')
             end
@@ -701,6 +702,16 @@ classdef label < handle
             if strcmp(tagPrefix, 'lblLE') || strcmp(tagPrefix, 'lblLS')
                 return
             end
+            % If the label is not in the current chunk, save labels and go to the chunk where the label starts (labels get reloaded from the file)
+            sigObj = obj.controlObj.signalObj;
+            kCur = obj.controlObj.currentChunk;
+            inCurrentChunk = obj.lblSet.End(nLbl(1)) >= sigObj.chunkTbl.SigStart(kCur) && obj.lblSet.Start(nLbl(1)) <= sigObj.chunkTbl.SigEnd(kCur);
+            if height(sigObj.chunkTbl) > 1 && ~inCurrentChunk
+                idSel = obj.lblSet.ID(nLbl); % IDs survive saving and reloading, row numbers may not
+                obj.lblSave;
+                obj.controlObj.goTo(obj.controlObj.currentFile, sigObj.chunkOfTime(obj.lblSet.Start(nLbl(1))));
+                nLbl = arrayfun(@(id) find(obj.lblSet.ID == id, 1), idSel);
+            end
             nonNLbl = setdiff(1 : size(obj.lblSet, 1), nLbl); % Get the non-selected cell subscripts
             obj.lblSet.Selected(nonNLbl) = false;
             obj.lblSet.Selected(nLbl) = true;
@@ -715,6 +726,7 @@ classdef label < handle
                 obj.lblSet.Channel(nLbl(1)) = 1;
             end
             lblStartS = datenum(obj.lblSet.Start(nLbl(1)) - obj.sigInfo.SigStart(ch))*24*3600; %#ok<DATNM>
+            lblStartS = max(lblStartS, 0); % Label may start in the previous chunk
             obj.controlObj.jumpToLabel(lblStartS, ch);
         end
         function obj = lblSetDelete(obj)
@@ -803,7 +815,7 @@ classdef label < handle
                 end
             end
             
-            sigInfo = obj.sigInfo; %#ok<PROP>
+            sigInfo = obj.fileSigInfo; %#ok<PROP> % Start and end of the whole file, not only the current chunk
             lblDef = obj.lblDef; %#ok<PROP>
             lblSet = obj.lblSet; %#ok<PROP>
             vrNm = lblSet.Properties.VariableNames; %#ok<PROP>
@@ -868,7 +880,7 @@ end
 dt_ = dt
 mss = max(obj.controlObj.signalObj.sigTbl.SigStart); mss.Format = 'yyMMdd_HHmmss'; mss_ = mss
 
-                if datenum(datetime(dt, 'InputFormat', 'yyMMdd_HHmmss') - max(obj.controlObj.signalObj.sigTbl.SigStart)) > 5/24/3600
+                if datenum(datetime(dt, 'InputFormat', 'yyMMdd_HHmmss') - obj.controlObj.signalObj.chunkTbl.SigStart(1)) > 5/24/3600 % Compare with the start of the file, not of the current chunk
                     [siginfo, lbldef, lblset] = loadLabel(fullfile(obj.filep, filen{kf}));
                     % Check if sigInfo.FileName corresponds to file name
                     fndattimStr = regexp(filen{kf}, '\d\d\d\d\d\d_\d\d\d\d\d\d', 'match');
@@ -930,7 +942,7 @@ mss = max(obj.controlObj.signalObj.sigTbl.SigStart); mss.Format = 'yyMMdd_HHmmss
 % %                 dt = regexpi(filen{kf}, '\D\d\d\d\d\d\d_\d\d\d\d\d\d\D', 'match'); % Date and time
 % %                 dt = dt{1}(2 : end-1);
                 dt = dt{1}(1 : end);
-                if datenum(datetime(dt, 'InputFormat', 'yyMMdd_HHmmss') - min(obj.controlObj.signalObj.sigTbl.SigStart)) < -5/24/3600
+                if datenum(datetime(dt, 'InputFormat', 'yyMMdd_HHmmss') - obj.controlObj.signalObj.chunkTbl.SigStart(1)) < -5/24/3600 % Compare with the start of the file, not of the current chunk
                     [~, ~, lblset] = loadLabel(fullfile(obj.filep, filen{kf}));
                     if obj.showShowedChannels
                         showChIdx = ismember(lblset.Channel, obj.controlObj.signalObj.chToPlot);
@@ -998,6 +1010,16 @@ mss = max(obj.controlObj.signalObj.sigTbl.SigStart); mss.Format = 'yyMMdd_HHmmss
             obj.sigInfo.FilePath = repelem(string(sigFilep)+"\", nSigCh)';
             obj.sigInfo(:, 3 : 7) = obj.controlObj.signalObj.sigTbl(:, 1 : 5);
             obj.controlObj.h.eLabelpn.String = [fullfile([obj.filep, '\'], char(obj.currentFilen)), '*'];
+        end
+        function sigInfo = fileSigInfo(obj)
+            % sigInfo with SigStart and SigEnd of the whole signal file, not only of the currently loaded chunk.
+            % Use this whenever sigInfo is saved or labels are checked against the signal start and end.
+            sigInfo = obj.sigInfo;
+            chunkTbl = obj.controlObj.signalObj.chunkTbl;
+            if height(chunkTbl) > 1
+                sigInfo.SigStart(:) = chunkTbl.SigStart(1);
+                sigInfo.SigEnd(:) = chunkTbl.SigEnd(end);
+            end
         end
         function obj = createLblFig(obj)
             % Try to implement this with figure and not uifigure. Needs to change the table formating functions.
