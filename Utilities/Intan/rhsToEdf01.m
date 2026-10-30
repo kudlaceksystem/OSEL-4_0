@@ -1,15 +1,17 @@
 % Convert Intan RHS file to EDF using edfwrite (Signal Processing Toolbox)
 
 % Step 1: Read RHS file
-filepn = 'NLU_250827_105345.rhs';   % <-- replace with your file
+filepn = 'NLD_261015_155529-JK010494_100uA_CA3_bipol_biphas.rhs';   % <-- replace with your file
 [channelNames, signalData, fs, digitalInData] = read_Intan_RHS2000_file(filepn);
 signalData = signalData/0.195; % units = microvolts
 signalData = int16(signalData);
-signalData = signalData(3 : 18, 1 : 1000000);
+% signalData = signalData(1 : 2, 1 : 100000);
 % Step 2: Prepare timetable for edfwrite
 num_channels = size(signalData, 1);
 num_samples  = size(signalData, 2);
 
+
+%% This does not work
 % % % % Create time vector
 % % % t = (0:num_samples-1)'/fs;
 % % % 
@@ -24,28 +26,29 @@ num_samples  = size(signalData, 2);
 % % % TT.Properties.VariableNames = channelNames;
 
 
-
+%% Create EDF header
 hdr = edfheader("EDF");
-hdr.Patient = "JK007295";
-% hdr.StartDate = "27.08.2025";
-% hdr.StartTime = "10:53:45";
-% hdr.Equipment = "NLU_B";
-% hdr.DataRecordDuration = seconds(600);
-% hdr.Labels = channelNames(3 : 6);
-hdr.NumSignals = 16;
+hdr.Patient = "UnknownSubject";
+% % % hdr.StartDate = "27.08.2025";
+% % % hdr.StartTime = "10:53:45";
+% % % hdr.Equipment = "NLU_B";
+% % % hdr.DataRecordDuration = seconds(600);
+% % % hdr.Labels = channelNames(3 : 6);
+num_channels = size(signalData, 1);
+hdr.NumSignals = num_channels;
 hdr.NumDataRecords = 1;
-hdr.PhysicalMin = -5*ones(1, 16);
-hdr.PhysicalMax = 5*ones(1, 16);
-hdr.DigitalMin = -32768*ones(1, 16);
-hdr.DigitalMax = 32767*ones(1, 16);
+hdr.PhysicalMin = -5*ones(1, num_channels);
+hdr.PhysicalMax = 5*ones(1, num_channels);
+hdr.DigitalMin = -32768*ones(1, num_channels);
+hdr.DigitalMax = 32767*ones(1, num_channels);
 
 
-% % % % edfw = edfwrite('JK007295.edf',hdr,signalData');
+%% Write EDF
+edf_filename = 'NLD_261015_155529-JK010494_100uA_CA3_bipol_biphas.edf';
+edfwrite(edf_filename, hdr, signalData')
+edfinfo(edf_filename)
 
-
-edf_filename = 'NLU_250827_105345.edf';
-edfwrite('NLU_250827_105345.edf', hdr, signalData')
-edfinfo("JK007295.edf")
+%% I used this for learning how edfwrite works
 % % % edfwrite(edf_filename, TT, ...
 % % %     'Patient',   'JK007295', ...        % Patient ID
 % % %     'Recording', 'IntanRHS Recording', ...% Recording ID
@@ -55,10 +58,7 @@ edfinfo("JK007295.edf")
 disp(['EDF file written: ', edf_filename]);
 
 
-disp(['EDF file written: ', edf_filename]);
-
-
-
+%% Functions from Intan
 function [channelNames, signalData, fs, digitalInData] = read_Intan_RHS2000_file(filepn)
     % read_Intan_RHS2000_file
     %

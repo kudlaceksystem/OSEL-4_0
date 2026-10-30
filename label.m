@@ -802,10 +802,17 @@ classdef label < handle
                     obj.currentFilen = lblfilen{fileNumber};
                 end
             end
-            
             sigInfo = obj.sigInfo; %#ok<PROP>
             lblDef = obj.lblDef; %#ok<PROP>
             lblSet = obj.lblSet; %#ok<PROP>
+            % Check if subject names correspond
+            ind = regexp(obj.currentFilen, '\d\d\d\d\d\d_\d\d\d\d\d\d');
+            lblnSubject = obj.currentFilen(1 : ind - 2);
+            if all(sigInfo.Subject(1) == sigInfo.Subject) %#ok<PROP>
+                if ~strcmp(lblnSubject, char(sigInfo.Subject(1))) %#ok<PROP>
+                    msgbox(['Label file name starts with ', lblnSubject, ' but in the sigTbl there is only subject ', char(sigInfo.Subject(1))]) %#ok<PROP>
+                end
+            end
             vrNm = lblSet.Properties.VariableNames; %#ok<PROP>
             for k = 1 : length(vrNm)
                 if isa(lblSet.(vrNm{k}), 'string') %#ok<PROP>

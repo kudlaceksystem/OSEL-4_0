@@ -1,6 +1,7 @@
 classdef signal < handle
     properties
         filepn % Files' paths and names
+        numChunks % Filled by loadSignal
 
         sigTbl % Table with loaded signals.       Subject        ChName       SigStart       SigEnd      Fs           Data       
         plotTbl % Table containing only signals which will be plotted

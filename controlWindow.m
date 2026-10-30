@@ -22,6 +22,7 @@ classdef controlWindow < handle
         playSpeed % 1 = normal speed
 
         currentFile % Number of the currently loaded signal file
+        currentChunk
 
         EEGFullData
         EEGSegmentData
@@ -91,6 +92,7 @@ classdef controlWindow < handle
                         obj.signalObj(end) = [];
                     end
                     obj.currentFile = 1;
+                    obj.currentChunk = 1;
                     obj.plotLimS = obj.stg.cDefaultPlotLimS; % Default (usually 0 to 10 seconds or so)
                     obj.nowS = obj.stg.cDefaultPlotLimS(1); % Default (usually 0)
                     obj.signalObj = signal(obj, filepn); % Create the signal object. Only creates figure, does not plot signals.
@@ -760,6 +762,12 @@ classdef controlWindow < handle
             obj.sigUpdate;
         end
         function obj = saveLblNextFile(obj)
+            if ~isnan(obj.currentChunk)
+                % adicht or similar file with chunks
+                % The code has to learn if the current chunk is the last
+                % chunk of the file. If so, then load first chunk of the next file. Otherwise,
+                % load next chunk. Use obj.signalObj.numChunks.
+            end
             if obj.callbackRunning
                 return
             end
@@ -787,6 +795,12 @@ classdef controlWindow < handle
             obj.callbackRunning = false;
         end
         function obj = nextFile(obj)
+            if ~isnan(obj.currentChunk)
+                % adicht or similar file with chunks
+                % The code has to learn if the current chunk is the last
+                % chunk of the file. If so, then load first chunk of the next file. Otherwise,
+                % load next chunk. Use obj.signalObj.numChunks.
+            end
             if obj.callbackRunning
                 return
             end
@@ -826,7 +840,6 @@ classdef controlWindow < handle
             end
             obj.signalObj.plotSignal;  % Just plots whatever is in plotTbl
         end
-
         function obj = connNextWindow(obj)
             % Make sure the connectivity window exists
             if isempty(obj.connObj) || ~isvalid(obj.connObj)
@@ -837,7 +850,6 @@ classdef controlWindow < handle
             % Call the same code as the Next button
             obj.connObj.cbNext();
         end
-        
         function obj = connPrevWindow(obj)
 
             % Make sure the connectivity window exists
@@ -849,8 +861,6 @@ classdef controlWindow < handle
             % Call the same code as the Next button
             obj.connObj.cbPrev();
         end
-
-      
         function obj = moveSigToFolder(obj)
             % moveSigToFolder
             if isempty(obj.destinationFolder)
