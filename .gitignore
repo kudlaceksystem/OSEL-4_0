@@ -8,7 +8,7 @@ loadpath.mat
 # Simulink cache and code generation
 slprj/
 sfun.mex*
-*.mex*
+# *.mex*
 
 # MATLAB compiled app files
 *.mlappinstall
